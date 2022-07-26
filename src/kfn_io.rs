@@ -4,21 +4,26 @@ use core::{num, panic};
 use std::fs;
 use std::error::Error;
 use helpers::dump_hex;
+use helpers::FileType;
+use helpers::Entry;
 
 #[derive(Debug)]
 pub struct KfnFile {
     file: Vec<u8>,
     read_head: usize,
+    entries: Vec<Entry>,
 }
 
 impl KfnFile {
     pub fn read(filename: &str) -> Self {
+        let mut entries = Vec::new();
         Self { 
             file: match fs::read(filename) {
                 Ok(file) => file,
                 Err(e) => panic!("File not found! {}", e),
             },
-            read_head: 0
+            read_head: 0,
+            entries
          }
     }
 
