@@ -13,6 +13,7 @@ use helpers::Entry;
 use crate::kfn_io::helpers::Header;
 
 #[derive(Debug)]
+/// Struct representing a KFN file and it's components.
 pub struct KfnFile {
     header: Header,
     file: Vec<u8>,
@@ -21,7 +22,10 @@ pub struct KfnFile {
 }
 
 impl KfnFile {
-    pub fn read(filename: &str) -> Self {
+
+    /// Constructor for creating a KfnFile struct.
+    /// Takes the filename as parameter.
+    pub fn new(filename: &str) -> Self {
         let entries = Vec::new();
         let header = Header::new();
         Self { 
@@ -35,6 +39,7 @@ impl KfnFile {
          }
     }
 
+    /// Method for parsing the file itself.
     pub fn parse(&mut self) -> Result<bool, Box<dyn Error>> {
         // read file signature
         let signature = String::from_utf8(self.read_bytes(4))?;
@@ -107,13 +112,14 @@ impl KfnFile {
         Ok(true)
     }
 
+    /// Extracting all files.
     pub fn extract_all(&mut self) {
         for i in 0..self.entries.len() {
             self.extract(self.entries[i].clone(), self.entries[i].clone().filename);
         }
     }
 
-    /// Extracting a file from the entry to a deisgnated output.
+    /// Extracting a single file from the entry to a deisgnated output.
     fn extract(&mut self, entry: Entry, output_filename: String) {
         // move read head to the beginning of the file
         let mut path_str = self.header.title.clone();
