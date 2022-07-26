@@ -1,5 +1,6 @@
 pub mod helpers;
 pub mod kfn_data;
+pub mod kfn_header;
 
 use std::fs;
 use std::fs::File;
@@ -15,12 +16,12 @@ use regex::Regex;
 
 use kfn_data::KfnData;
 
-use crate::kfn_io::helpers::Header;
+use kfn_header::KfnHeader;
 
 #[derive(Debug)]
 /// Struct representing a KFN file and it's components.
 pub struct KfnFile {
-    header: Header,
+    header: KfnHeader,
     file: Vec<u8>,
     read_head: usize,
     entries: Vec<Entry>,
@@ -33,7 +34,7 @@ impl KfnFile {
     /// Takes the filename as parameter.
     pub fn new(filename: &str) -> Self {
         let entries = Vec::new();
-        let header = Header::new();
+        let header = KfnHeader::new();
         let kfn_data = KfnData::new();
         Self { 
             file: match fs::read(filename) {

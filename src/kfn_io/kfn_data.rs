@@ -1,3 +1,4 @@
+/// KfnHeader depicting the header contents of a Kfn file
 #[derive(Debug)]
 pub struct KfnData {
     pub path_songs_ini: String,
