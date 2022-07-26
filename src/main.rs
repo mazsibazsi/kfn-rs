@@ -4,5 +4,6 @@ use kfn_io::KfnFile;
 
 fn main() {
     let mut kfn = KfnFile::read("shika.kfn");
-    dbg!(kfn.parse());
+    dbg!(kfn.parse().unwrap());
+    kfn.extract_all();
 }
