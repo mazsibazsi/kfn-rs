@@ -3,7 +3,7 @@
 pub struct KfnData {
     pub path_songs_ini: String,
     pub syncs: Vec<usize>,
-    text: Vec<String>,
+    pub text: Vec<String>,
 }
 
 impl KfnData {

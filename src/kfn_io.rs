@@ -125,9 +125,11 @@ impl KfnFile {
 
         self.extract_all();
         self.kfn_data.syncs = self.get_syncs();
+        self.kfn_data.text = self.get_text();
         Ok(true)
     }
 
+    /// Extracting sync points into a vector.
     pub fn get_syncs(&mut self) -> Vec<usize> {
 
         let mut syncs: Vec<usize> = Vec::new();
@@ -144,6 +146,26 @@ impl KfnFile {
             }
         }
         syncs
+    }
+
+    /// Extracting sync points into a vector.
+    pub fn get_text(&mut self) -> Vec<String> {
+
+        let mut text: Vec<String> = Vec::new();
+
+        let contents_raw = fs::read_to_string(&self.kfn_data.path_songs_ini).unwrap();
+        let contents: Vec<&str> = contents_raw.split("\n").collect();
+        for line in contents {
+            let re = Regex::new(r"^Text\d+=(.*)$").unwrap();
+            if re.is_match(line) {
+                let textline_str = re.captures(line).unwrap().get(1).map_or("", |m| m.as_str());
+                let mut textline_split: Vec<String> = textline_str.split(&['/', ' ', '\n']).map(|s| s.to_string()).collect();
+                if textline_str != "" {
+                    text.append(&mut textline_split);
+                }
+            }
+        }
+        text
     }
 
     /// Extracting all files.
