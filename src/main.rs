@@ -1,5 +1,8 @@
-mod kfn_dump;
+mod kfn_io;
+
+use kfn_io::KfnFile;
 
 fn main() {
-    println!("Hello, world!");
+    let mut kfn = KfnFile::read("shika.kfn");
+    dbg!(kfn.parse());
 }
