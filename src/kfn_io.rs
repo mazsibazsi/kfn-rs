@@ -1,5 +1,8 @@
+/// Helpers, containing methods for handling the data and filetypes.
 pub mod helpers;
+/// Module for handling the main data of the KFN file, like songtexts and sync times.
 pub mod kfn_data;
+/// The header of the KFN file, containing non-essential data for playing, like the artist or title.
 pub mod kfn_header;
 
 use std::fs;
@@ -129,7 +132,7 @@ impl KfnFile {
         Ok(true)
     }
 
-    /// Extracting sync points into a vector.
+    /// Extracting songtexts into a vector.
     pub fn get_syncs(&mut self) -> Vec<usize> {
 
         let mut syncs: Vec<usize> = Vec::new();

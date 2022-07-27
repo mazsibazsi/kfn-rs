@@ -1,8 +1,11 @@
-/// KfnHeader depicting the header contents of a Kfn file
+/// KfnHeader depicting the header contents of a KFN file
 #[derive(Debug)]
 pub struct KfnData {
+    /// The location of the Songs.ini file.
     pub path_songs_ini: String,
+    /// Sync timestamps
     pub syncs: Vec<usize>,
+    /// Lyrics
     pub text: Vec<String>,
 }
 

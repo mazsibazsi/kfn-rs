@@ -8,6 +8,7 @@ pub struct KfnHeader {
 }
 
 impl KfnHeader {
+    /// Creating a new empty header file without data.
     pub fn new() -> Self {
         Self { title: "".to_string(), artist: "".to_string(), karafunizer: "".to_string() }
     }
