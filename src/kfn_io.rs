@@ -1,24 +1,34 @@
+/// Helpers, containing methods for handling the data and filetypes.
 pub mod helpers;
+/// Module for handling the main data of the KFN file, like songtexts and sync times.
+pub mod kfn_data;
+/// The header of the KFN file, containing non-essential data for playing, like the artist or title.
+pub mod kfn_header;
 
-use core::{panic};
 use std::fs;
-use std::error::Error;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+use std::string::FromUtf8Error;
+
 use helpers::dump_hex;
 use helpers::FileType;
 use helpers::Entry;
 
-use crate::kfn_io::helpers::Header;
+use regex::Regex;
+
+use kfn_data::KfnData;
+
+use kfn_header::KfnHeader;
 
 #[derive(Debug)]
 /// Struct representing a KFN file and it's components.
 pub struct KfnFile {
-    header: Header,
+    header: KfnHeader,
     file: Vec<u8>,
     read_head: usize,
     entries: Vec<Entry>,
+    pub kfn_data: KfnData,
 }
 
 impl KfnFile {
@@ -27,7 +37,8 @@ impl KfnFile {
     /// Takes the filename as parameter.
     pub fn new(filename: &str) -> Self {
         let entries = Vec::new();
-        let header = Header::new();
+        let header = KfnHeader::new();
+        let kfn_data = KfnData::new();
         Self { 
             file: match fs::read(filename) {
                 Ok(file) => file,
@@ -36,11 +47,12 @@ impl KfnFile {
             read_head: 0,
             entries,
             header,
+            kfn_data,
          }
     }
 
     /// Method for parsing the file itself.
-    pub fn parse(&mut self) -> Result<bool, Box<dyn Error>> {
+    pub fn dump(&mut self) -> Result<bool, FromUtf8Error> {
         // read file signature
         let signature = String::from_utf8(self.read_bytes(4))?;
         // if file signature is not KFNB, end parsing
@@ -50,22 +62,27 @@ impl KfnFile {
 
         // reading the header
         loop {
+            // get signature
             let signature = String::from_utf8(self.read_bytes(4))?;
+            // get type of the line
             let l_type = self.read_byte();
             let len_or_value = self.read_dword();
 
+            // match for line type > if type 1, it's a value, if type 2 -> it contains header information
             match l_type {
                 1 => {
                     println!("{}, type 1, value {:x}", signature, len_or_value);
                 },
                 2 => {
+                    // get data into buffer
                     let buf = self.read_bytes(len_or_value);
-                    dbg!(&signature);
+                    // match header info and insert into header
                     match signature.as_str() {
                         "TITL" => self.header.title = String::from_utf8(buf.clone()).unwrap_or("Unknown".to_string()),
                         "ARTS" => self.header.artist = String::from_utf8(buf.clone()).unwrap_or("Unknown".to_string()),
                         "KFNZ" => self.header.karafunizer = String::from_utf8(buf.clone()).unwrap_or("Unknown".to_string()),
                         _ => ()
+                        // TODO implement all header types
                     }
                     println!("{}, type 2, length {:#?}, hex: {}, string: {:?}", signature, len_or_value, dump_hex(&buf), String::from_utf8(buf));
                 },
@@ -89,7 +106,7 @@ impl KfnFile {
             let filename_len = self.read_dword();
             let filename = match String::from_utf8(self.read_bytes(filename_len)) {
                 Ok(s) => s,
-                Err(_) => panic!("Invalid filename in KFN file.")
+                Err(e) => return Err(e),
             };
             let file_type = FileType::from(self.read_dword());
             let len1 = self.read_dword() as usize;
@@ -109,7 +126,49 @@ impl KfnFile {
 
         println!("Directory ends at offset {}", self.read_head);
 
+        self.extract_all();
+        self.kfn_data.syncs = self.get_syncs();
+        self.kfn_data.text = self.get_text();
         Ok(true)
+    }
+
+    /// Extracting songtexts into a vector.
+    pub fn get_syncs(&mut self) -> Vec<usize> {
+
+        let mut syncs: Vec<usize> = Vec::new();
+
+        let contents_raw = fs::read_to_string(&self.kfn_data.path_songs_ini).unwrap();
+        let contents: Vec<&str> = contents_raw.split("\n").collect();
+        for line in contents {
+            let re = Regex::new(r"^Sync\d+=(.*)$").unwrap();
+            
+            if re.is_match(line) {
+                let syncline_str = re.captures(line).unwrap().get(1).map_or("", |m| m.as_str());
+                let mut syncline_split: Vec<usize> = syncline_str.split(",").map(|n| usize::from_str_radix(n, 10).unwrap()).collect();
+                syncs.append(&mut syncline_split);
+            }
+        }
+        syncs
+    }
+
+    /// Extracting sync points into a vector.
+    pub fn get_text(&mut self) -> Vec<String> {
+
+        let mut text: Vec<String> = Vec::new();
+
+        let contents_raw = fs::read_to_string(&self.kfn_data.path_songs_ini).unwrap();
+        let contents: Vec<&str> = contents_raw.split("\n").collect();
+        for line in contents {
+            let re = Regex::new(r"^Text\d+=(.*)$").unwrap();
+            if re.is_match(line) {
+                let textline_str = re.captures(line).unwrap().get(1).map_or("", |m| m.as_str());
+                let mut textline_split: Vec<String> = textline_str.split(&['/', ' ', '\n']).map(|s| s.to_string()).collect();
+                if textline_str != "" {
+                    text.append(&mut textline_split);
+                }
+            }
+        }
+        text
     }
 
     /// Extracting all files.
@@ -125,11 +184,11 @@ impl KfnFile {
         let mut path_str = self.header.title.clone();
         path_str.push('/');
         path_str.push_str(output_filename.as_str());
+        self.kfn_data.path_songs_ini = path_str.clone();
         let path = Path::new(&path_str);
         let prefix = path.parent().unwrap();
         fs::create_dir_all(prefix).unwrap();
         // create output file
-        dbg!(&self.header.title);
         let mut output = File::create(path).unwrap();
         // init buffer
         let buf: Vec<u8> = Vec::from(&self.file[entry.offset..entry.offset+entry.len1]);
