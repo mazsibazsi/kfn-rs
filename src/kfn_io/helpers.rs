@@ -14,6 +14,14 @@ pub fn dump_hex(array: &Vec<u8>) -> String {
     output
 }
 
+pub fn u32_to_u8_arr(x:u32) -> Vec<u8> {
+    let b1 : u8 = ((x >> 24) & 0xff) as u8;
+    let b2 : u8 = ((x >> 16) & 0xff) as u8;
+    let b3 : u8 = ((x >> 8) & 0xff) as u8;
+    let b4 : u8 = (x & 0xff) as u8;
+    return vec![b4, b3, b2, b1]
+}
+
 /// File types, that indicate what kind of files can occur in a KFN file.
 #[derive(Debug, Copy, Clone)]
 pub enum FileType {

@@ -24,10 +24,11 @@ use kfn_header::KfnHeader;
 use dbg_hex::dbg_hex;
 
 
+
 #[derive(Debug)]
 /// Struct representing a KFN file and it's components.
 pub struct KfnFile {
-    header: KfnHeader,
+    pub header: KfnHeader,
     /// The binary data in a vector of bytes.
     file_data: Vec<u8>,
     read_head: usize,

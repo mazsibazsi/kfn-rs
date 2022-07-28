@@ -1,5 +1,7 @@
 mod kfn_io;
 
+use std::fs;
+
 //use std::env;
 use kfn_io::KfnFile;
 
@@ -21,4 +23,5 @@ fn main() {
     let mut kfn = KfnFile::read("ichido.kfn");
     kfn.dump().unwrap();
     dbg!(kfn.kfn_data.syncs.len(), kfn.kfn_data.text.len());
+    fs::write("output.kfn", kfn.header.to_data()).unwrap();
 }
