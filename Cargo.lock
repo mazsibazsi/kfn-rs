@@ -69,6 +69,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "dbg_hex"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f74abed44e4dbc4d0548b565869c66c9c6d6d84011a8c14cee2cacfdada3d60"
+
+[[package]]
 name = "field-offset"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -402,6 +408,7 @@ checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 name = "kfn-rs"
 version = "0.1.0"
 dependencies = [
+ "dbg_hex",
  "regex",
  "relm4",
  "relm4-components",

@@ -21,11 +21,15 @@ use kfn_data::KfnData;
 
 use kfn_header::KfnHeader;
 
+use dbg_hex::dbg_hex;
+
+
 #[derive(Debug)]
 /// Struct representing a KFN file and it's components.
 pub struct KfnFile {
     header: KfnHeader,
-    file: Vec<u8>,
+    /// The binary data in a vector of bytes.
+    file_data: Vec<u8>,
     read_head: usize,
     entries: Vec<Entry>,
     pub kfn_data: KfnData,
@@ -35,12 +39,12 @@ impl KfnFile {
 
     /// Constructor for creating a KfnFile struct.
     /// Takes the filename as parameter.
-    pub fn new(filename: &str) -> Self {
+    pub fn read(filename: &str) -> Self {
         let entries = Vec::new();
-        let header = KfnHeader::new();
+        let header = KfnHeader::default();
         let kfn_data = KfnData::new();
         Self { 
-            file: match fs::read(filename) {
+            file_data: match fs::read(filename) {
                 Ok(file) => file,
                 Err(e) => panic!("File not found! {}", e),
             },
@@ -59,7 +63,7 @@ impl KfnFile {
         if signature != "KFNB" {
             panic!("Bad signature error");
         }
-
+        
         // reading the header
         loop {
             // get signature
@@ -71,20 +75,84 @@ impl KfnFile {
             // match for line type > if type 1, it's a value, if type 2 -> it contains header information
             match l_type {
                 1 => {
-                    println!("{}, type 1, value {:x}", signature, len_or_value);
+                    match signature.as_str() {
+                        "DIFM" => {
+                            self.header.diff_men = len_or_value;
+                        },
+                        "DIFW" => {
+                            self.header.diff_women = len_or_value;
+                        },
+                        "GNRE" => {
+                            self.header.genre = len_or_value;
+                        },
+                        "SFTV" => {
+                            self.header.sftv = len_or_value;
+                        },
+                        "MUSL" => {
+                            self.header.musl = len_or_value;
+                        },
+                        "ANME" => {
+                            self.header.anme = len_or_value;
+                        },
+                        "TYPE" => {
+                            self.header.kfn_type = len_or_value;
+                        },
+                        "RGHT" => {
+                            self.header.rght = len_or_value;
+                        },
+                        "PROV" => {
+                            self.header.prov = len_or_value;
+                        },
+                        _ => println!("{}, type 1, value {:x}", signature, len_or_value),
+                    }
+                    //println!("{}, type 1, value {:x}", signature, len_or_value);
                 },
                 2 => {
                     // get data into buffer
-                    let buf = self.read_bytes(len_or_value);
+                    let buffer = self.read_bytes(len_or_value);
+                    let buffer_str = String::from_utf8(buffer.clone()).unwrap_or("Unknown".to_string());
                     // match header info and insert into header
                     match signature.as_str() {
-                        "TITL" => self.header.title = String::from_utf8(buf.clone()).unwrap_or("Unknown".to_string()),
-                        "ARTS" => self.header.artist = String::from_utf8(buf.clone()).unwrap_or("Unknown".to_string()),
-                        "KFNZ" => self.header.karafunizer = String::from_utf8(buf.clone()).unwrap_or("Unknown".to_string()),
+                        "FLID" => {
+                            self.header.flid = buffer_str;
+                        },
+                        "LANG" => {
+                            self.header.language = buffer_str
+                        },
+                        "TITL" => {
+                            self.header.title = buffer_str
+                        },
+                        "ALBM" => {
+                            self.header.album = buffer_str
+                        },
+                        "ARTS" => {
+                            self.header.artist = buffer_str
+                        },
+                        "COMP" => {
+                            self.header.composer = buffer_str
+                        },
+                        "COPY" => {
+                            self.header.copyright = buffer_str
+                        },
+                        "SORC" => {
+                            self.header.source_file = buffer_str
+                        },
+                        "YEAR" => {
+                            self.header.year = buffer_str
+                        },
+                        "TRAK" => {
+                            self.header.trak = buffer_str
+                        },
+                        "KFNZ" => {
+                            self.header.karafunizer = buffer_str
+                        },
+                        "IDUS" => {
+                            self.header.idus = buffer_str
+                        },
                         _ => ()
                         // TODO implement all header types
                     }
-                    println!("{}, type 2, length {:#?}, hex: {}, string: {:?}", signature, len_or_value, dump_hex(&buf), String::from_utf8(buf));
+                    println!("{}, type 2, length {:#?}, hex: {}, string: {:?}", signature, len_or_value, dump_hex(&buffer), String::from_utf8(buffer));
                 },
                 _ => {
 
@@ -96,7 +164,8 @@ impl KfnFile {
             }
         }
         println!("header end: {}", self.read_head);
-
+        
+        dbg_hex!(&self.header);
         // reading the directory
         let num_files = self.read_dword();
         println!("# of files: {}", num_files);
@@ -191,14 +260,14 @@ impl KfnFile {
         // create output file
         let mut output = File::create(path).unwrap();
         // init buffer
-        let buf: Vec<u8> = Vec::from(&self.file[entry.offset..entry.offset+entry.len1]);
+        let buf: Vec<u8> = Vec::from(&self.file_data[entry.offset..entry.offset+entry.len1]);
         output.write_all(&buf).unwrap();
         
     }
 
     /// Helper IO function for reading a byte
     fn read_byte(&mut self) -> u8 {
-        let result = self.file[self.read_head as usize];
+        let result = self.file_data[self.read_head as usize];
         self.read_head += 1;
         (result & 0xFF).into()
     }

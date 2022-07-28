@@ -1,6 +1,6 @@
 mod kfn_io;
 
-use std::env;
+//use std::env;
 use kfn_io::KfnFile;
 
 fn main() {
@@ -18,7 +18,7 @@ fn main() {
     if file == "None" {
         return;
     }*/
-    let mut kfn = KfnFile::new("shika.kfn");
+    let mut kfn = KfnFile::read("ichido.kfn");
     kfn.dump().unwrap();
     dbg!(kfn.kfn_data.syncs.len(), kfn.kfn_data.text.len());
 }
