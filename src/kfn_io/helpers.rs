@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-/// Converting u8 HEX to String HEX
+/// Converting a Vector of u8s HEX to String HEX
 pub fn dump_hex(array: &Vec<u8>) -> String {
     let mut output = String::new();
     for i in 0..array.len() {
@@ -14,6 +14,7 @@ pub fn dump_hex(array: &Vec<u8>) -> String {
     output
 }
 
+/// Helper function to slice up an u32 to a vector of u8s.
 pub fn u32_to_u8_arr(x:u32) -> Vec<u8> {
     let b1 : u8 = ((x >> 24) & 0xff) as u8;
     let b2 : u8 = ((x >> 16) & 0xff) as u8;
@@ -25,7 +26,7 @@ pub fn u32_to_u8_arr(x:u32) -> Vec<u8> {
 /// File types, that indicate what kind of files can occur in a KFN file.
 #[derive(Debug, Copy, Clone)]
 pub enum FileType {
-    Songtext,
+    SongIni,
     Music,
     Image,
     Font,
@@ -33,10 +34,11 @@ pub enum FileType {
     INVALID,
 }
 
+/// Helper to read the file type in the directory.
 impl From<u32> for FileType {
     fn from(numeric: u32) -> Self {
         match numeric {
-            1 => FileType::Songtext,
+            1 => FileType::SongIni,
             2 => FileType::Music,
             3 => FileType::Image,
             4 => FileType::Font,

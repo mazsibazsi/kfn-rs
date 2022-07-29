@@ -1,3 +1,4 @@
+
 /// KfnHeader depicting the header contents of a KFN file
 #[derive(Debug)]
 pub struct KfnData {
@@ -18,5 +19,7 @@ impl KfnData {
             path_songs_ini: dir_songs_ini, syncs, text, 
         }
     }
+
+
 
 }

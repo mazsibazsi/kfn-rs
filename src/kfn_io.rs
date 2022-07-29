@@ -250,7 +250,6 @@ impl KfnFile {
 
     /// Extracting a single file from the entry to a deisgnated output.
     fn extract(&mut self, entry: Entry, output_filename: String) {
-        // move read head to the beginning of the file
         let mut path_str = self.header.title.clone();
         path_str.push('/');
         path_str.push_str(output_filename.as_str());

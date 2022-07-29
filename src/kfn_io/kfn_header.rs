@@ -27,24 +27,16 @@ pub struct KfnHeader {
     pub prov: u32,
     pub karafunizer: String,
     pub idus: String,
-    // TODO have all header entries represented
 }
 
 
 impl KfnHeader {
-    // Creating a new empty header file without data.
-    /* pub fn new() -> Self {
-        Self { 
-            
-            title: "".to_string(), 
-            artist: "".to_string(), 
-            karafunizer: "".to_string() }
-    }*/
-    // TODO have header entries be reproducible/rewritable to file.
-    pub fn to_data(&self) -> Vec<u8> {
 
+    pub fn to_data(&self) -> Vec<u8> {
         // create the data vector
         let mut data: Vec<u8> = Vec::new();
+
+        // To learn more about the headers, please read the documentation bundled.
 
         // beginning of header
         data.append(&mut "KFNB".as_bytes().to_owned());
@@ -126,6 +118,11 @@ impl KfnHeader {
         data.push(2_u8);
         data.append(&mut u32_to_u8_arr(self.trak.len() as u32));
         data.append(&mut self.trak.as_bytes().to_owned());
+        // karafunizer
+        data.append(&mut "KFNZ".as_bytes().to_owned());
+        data.push(2_u8);
+        data.append(&mut u32_to_u8_arr(self.karafunizer.len() as u32));
+        data.append(&mut self.karafunizer.as_bytes().to_owned());
         // rght / right
         data.append(&mut "RGHT".as_bytes().to_owned());
         data.push(1_u8);
