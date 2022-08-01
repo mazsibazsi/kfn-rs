@@ -6,6 +6,7 @@ use std::fs;
 use kfn_io::KfnFile;
 use kfn_io::helpers::ToBinary;
 
+
 fn main() {
     /* let mut file = String::from("None");
     let args: Vec<String> = env::args().collect();
@@ -33,5 +34,5 @@ fn main() {
         fs::write("Songs.ini", songs_ini.file_bin).unwrap();
     }
     fs::write("asd.mp3", kfn.data.entries[10].clone().file_bin).unwrap();
-
+    
 }
