@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::{fmt::Write, default};
 
 /// Converting a Vector of u8s HEX to String HEX
 pub fn dump_hex(array: &Vec<u8>) -> String {
@@ -60,13 +60,19 @@ impl Into<u32> for FileType {
             FileType::Image => 3,
             FileType::Font => 4,
             FileType::Video => 5,
-            _ => 0,
+            FileType::INVALID => 0,
         }
     }
 }
 
+impl Default for FileType {
+    fn default() -> Self {
+        FileType::INVALID
+    }
+}
+
 /// Representing a file entry in the KFN file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Entry {
     pub file_type: FileType,
     pub filename: String,

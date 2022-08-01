@@ -29,11 +29,16 @@ use dbg_hex::dbg_hex;
 #[derive(Debug)]
 /// Struct representing a KFN file and it's components.
 pub struct KfnFile {
-    pub header: KfnHeader,
+    
     /// The binary data in a vector of bytes.
     file_data: Vec<u8>,
+
+    /// The read head, used in calculating the offset from the directory end.
     read_head: usize,
     
+    /// The header data of the file.
+    pub header: KfnHeader,
+    /// The data container for the file.
     pub data: KfnData,
 }
 
@@ -44,18 +49,14 @@ impl KfnFile {
     /// Constructor for creating a KfnFile struct.
     /// Takes the filename as parameter.
     pub fn read(filename: &str) -> Self {
-
-        let header = KfnHeader::default();
-        let kfn_data = KfnData::new();
         Self { 
             file_data: match fs::read(filename) {
                 Ok(file) => file,
                 Err(e) => panic!("File not found! {}", e),
             },
-            read_head: 0,
-            
-            header,
-            data: kfn_data,
+            read_head: usize::default(),
+            header: KfnHeader::default(),
+            data: KfnData::new(),
          }
     }
 
@@ -187,25 +188,30 @@ impl KfnFile {
             let len2 = self.read_dword() as usize;
             let flags = self.read_dword() as usize;
 
-            let buf: Vec<u8> = Vec::from(&self.file_data[offset..offset+len1]);
+            let buf: Vec<u8> = Vec::default();
 
             self.data.entries.push(Entry {
                 filename, file_type, len1, offset, len2, flags, file_bin: buf,
             });
         }
 
+        self.data.offset_dir_end = self.read_head;
         // readjust offset
         for i in 0..self.data.entries.len() {
             self.data.entries[i].offset += self.read_head;
+            self.data.entries[i].file_bin = 
+                        Vec::from(
+                            &self.file_data[
+                                self.data.entries[i].offset
+                                ..
+                                self.data.entries[i].offset +   self.data.entries[i].len1
+                            ]
+                        );
         }
-        self.data.dir_end = self.read_head;
+        
         println!("Directory ends at offset {}", self.read_head);
 
-        self.extract_all();
 
-
-        self.data.syncs = self.get_syncs();
-        self.data.text = self.get_text();
         Ok(true)
     }
 
@@ -214,7 +220,7 @@ impl KfnFile {
 
         let mut syncs: Vec<usize> = Vec::new();
 
-        let contents_raw = fs::read_to_string(&self.data.path_songs_ini).unwrap();
+        let contents_raw = fs::read_to_string(&self.data.path_song_ini).unwrap();
         let contents: Vec<&str> = contents_raw.split("\n").collect();
         for line in contents {
             let re = Regex::new(r"^Sync\d+=(.*)$").unwrap();
@@ -233,7 +239,7 @@ impl KfnFile {
 
         let mut text: Vec<String> = Vec::new();
 
-        let contents_raw = fs::read_to_string(&self.data.path_songs_ini).unwrap();
+        let contents_raw = fs::read_to_string(&self.data.path_song_ini).unwrap();
         let contents: Vec<&str> = contents_raw.split("\n").collect();
         for line in contents {
             let re = Regex::new(r"^Text\d+=(.*)$").unwrap();
@@ -260,7 +266,7 @@ impl KfnFile {
         let mut path_str = self.header.title.clone();
         path_str.push('/');
         path_str.push_str(output_filename.as_str());
-        self.data.path_songs_ini = path_str.clone();
+        self.data.path_song_ini = path_str.clone();
         let path = Path::new(&path_str);
         let prefix = path.parent().unwrap();
         fs::create_dir_all(prefix).unwrap();

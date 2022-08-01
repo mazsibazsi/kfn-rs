@@ -7,27 +7,33 @@ use super::helpers::{u32_to_u8_arr, ToBinary};
 #[derive(Debug)]
 pub struct KfnData {
     /// The location of the Songs.ini file.
-    pub path_songs_ini: String,
-    /// Sync timestamps
-    pub syncs: Vec<usize>,
-    /// Lyrics
-    pub text: Vec<String>,
+    pub path_song_ini: String,
     /// Files in the directory/library
     pub entries: Vec<Entry>,
     /// End of the directory header
-    pub dir_end: usize,
+    pub offset_dir_end: usize,
 }
 
 impl KfnData {
     pub fn new() -> Self {
         let dir_songs_ini = String::new();
         let entries = Vec::new();
-        let syncs = Vec::new();
-        let text = Vec::new();
-        let dir_end = 0;
+        let offset_dir_end = 0;
         Self {
-            path_songs_ini: dir_songs_ini, syncs, text, entries, dir_end,
+            path_song_ini: dir_songs_ini, entries, offset_dir_end,
         }
+    }
+
+    /// Get the Songs.ini file from the entries.
+    pub fn get_songs_ini(&self) -> Option<Entry> {
+        let mut song_ini = None;
+        for entry in self.entries.clone() {
+            if entry.filename == "Song.ini" {
+                song_ini = Some(entry);
+                break;
+            }
+        }
+        song_ini
     }
 
 
@@ -86,7 +92,7 @@ impl KfnData {
         let last_index = self.entries.len()-1;
 
         // return the last entry's offset plus its length, removed the end of the dir header to get the new offset
-        self.entries[last_index].offset + self.entries[last_index].len1 - self.dir_end
+        self.entries[last_index].offset + self.entries[last_index].len1 - self.offset_dir_end
     }
 
 }

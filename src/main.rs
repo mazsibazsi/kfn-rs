@@ -23,14 +23,15 @@ fn main() {
     }*/
     let mut kfn = KfnFile::read("ichido.kfn");
     kfn.dump().unwrap();
-    dbg!(kfn.data.syncs.len(), kfn.data.text.len());
-    let mut data: Vec<u8> = Vec::new();
-    data.append(&mut kfn.header.to_binary());
+
 
     //kfn.data.add_entry_from_file("beyond_the_time.jpg");
-    
+    let mut data: Vec<u8> = Vec::new();
+    data.append(&mut kfn.header.to_binary());
     data.append(&mut kfn.data.to_binary());
-    fs::write("output.kfn", data).unwrap();
-
+    if let Some(songs_ini) = kfn.data.get_songs_ini() {
+        fs::write("Songs.ini", songs_ini.file_bin).unwrap();
+    }
+    fs::write("asd.mp3", kfn.data.entries[10].clone().file_bin).unwrap();
 
 }
