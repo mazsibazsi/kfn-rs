@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use super::helpers::u32_to_u8_arr;
+use super::helpers::{u32_to_u8_arr, ToBinary};
 
 /// Header, containing information about the KFN file. WIP
 #[derive(Debug, Default)]
@@ -32,7 +32,12 @@ pub struct KfnHeader {
 
 impl KfnHeader {
 
-    pub fn to_data(&self) -> Vec<u8> {
+    
+
+}
+
+impl ToBinary for KfnHeader {
+    fn to_binary(&self) -> Vec<u8> {
         // create the data vector
         let mut data: Vec<u8> = Vec::new();
 
@@ -143,5 +148,4 @@ impl KfnHeader {
 
         data
     }
-
 }

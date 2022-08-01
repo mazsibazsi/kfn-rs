@@ -34,6 +34,10 @@ pub enum FileType {
     INVALID,
 }
 
+pub trait ToBinary {
+    fn to_binary(&self) -> Vec<u8>;
+}
+
 /// Helper to read the file type in the directory.
 impl From<u32> for FileType {
     fn from(numeric: u32) -> Self {
@@ -48,6 +52,19 @@ impl From<u32> for FileType {
     }
 }
 
+impl Into<u32> for FileType {
+    fn into(self) -> u32 {
+        match self {
+            FileType::SongIni => 1,
+            FileType::Music => 2,
+            FileType::Image => 3,
+            FileType::Font => 4,
+            FileType::Video => 5,
+            _ => 0,
+        }
+    }
+}
+
 /// Representing a file entry in the KFN file.
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -57,5 +74,6 @@ pub struct Entry {
     pub offset: usize,
     pub len2: usize,
     pub flags: usize,
+    pub file_bin: Vec<u8>,
 }
 

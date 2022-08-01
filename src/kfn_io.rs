@@ -15,6 +15,7 @@ use helpers::dump_hex;
 use helpers::FileType;
 use helpers::Entry;
 
+
 use regex::Regex;
 
 use kfn_data::KfnData;
@@ -32,16 +33,18 @@ pub struct KfnFile {
     /// The binary data in a vector of bytes.
     file_data: Vec<u8>,
     read_head: usize,
-    entries: Vec<Entry>,
-    pub kfn_data: KfnData,
+    
+    pub data: KfnData,
 }
+
+
 
 impl KfnFile {
 
     /// Constructor for creating a KfnFile struct.
     /// Takes the filename as parameter.
     pub fn read(filename: &str) -> Self {
-        let entries = Vec::new();
+
         let header = KfnHeader::default();
         let kfn_data = KfnData::new();
         Self { 
@@ -50,9 +53,9 @@ impl KfnFile {
                 Err(e) => panic!("File not found! {}", e),
             },
             read_head: 0,
-            entries,
+            
             header,
-            kfn_data,
+            data: kfn_data,
          }
     }
 
@@ -184,21 +187,25 @@ impl KfnFile {
             let len2 = self.read_dword() as usize;
             let flags = self.read_dword() as usize;
 
-            self.entries.push(Entry {
-                filename, file_type, len1, offset, len2, flags
+            let buf: Vec<u8> = Vec::from(&self.file_data[offset..offset+len1]);
+
+            self.data.entries.push(Entry {
+                filename, file_type, len1, offset, len2, flags, file_bin: buf,
             });
         }
 
         // readjust offset
-        for i in 0..self.entries.len() {
-            self.entries[i].offset += self.read_head;
+        for i in 0..self.data.entries.len() {
+            self.data.entries[i].offset += self.read_head;
         }
-
+        self.data.dir_end = self.read_head;
         println!("Directory ends at offset {}", self.read_head);
 
         self.extract_all();
-        self.kfn_data.syncs = self.get_syncs();
-        self.kfn_data.text = self.get_text();
+
+
+        self.data.syncs = self.get_syncs();
+        self.data.text = self.get_text();
         Ok(true)
     }
 
@@ -207,7 +214,7 @@ impl KfnFile {
 
         let mut syncs: Vec<usize> = Vec::new();
 
-        let contents_raw = fs::read_to_string(&self.kfn_data.path_songs_ini).unwrap();
+        let contents_raw = fs::read_to_string(&self.data.path_songs_ini).unwrap();
         let contents: Vec<&str> = contents_raw.split("\n").collect();
         for line in contents {
             let re = Regex::new(r"^Sync\d+=(.*)$").unwrap();
@@ -226,7 +233,7 @@ impl KfnFile {
 
         let mut text: Vec<String> = Vec::new();
 
-        let contents_raw = fs::read_to_string(&self.kfn_data.path_songs_ini).unwrap();
+        let contents_raw = fs::read_to_string(&self.data.path_songs_ini).unwrap();
         let contents: Vec<&str> = contents_raw.split("\n").collect();
         for line in contents {
             let re = Regex::new(r"^Text\d+=(.*)$").unwrap();
@@ -243,8 +250,8 @@ impl KfnFile {
 
     /// Extracting all files.
     pub fn extract_all(&mut self) {
-        for i in 0..self.entries.len() {
-            self.extract(self.entries[i].clone(), self.entries[i].clone().filename);
+        for i in 0..self.data.entries.len() {
+            self.extract(self.data.entries[i].clone(), self.data.entries[i].clone().filename);
         }
     }
 
@@ -253,7 +260,7 @@ impl KfnFile {
         let mut path_str = self.header.title.clone();
         path_str.push('/');
         path_str.push_str(output_filename.as_str());
-        self.kfn_data.path_songs_ini = path_str.clone();
+        self.data.path_songs_ini = path_str.clone();
         let path = Path::new(&path_str);
         let prefix = path.parent().unwrap();
         fs::create_dir_all(prefix).unwrap();
@@ -301,5 +308,3 @@ impl KfnFile {
 
     
 }
-
-
