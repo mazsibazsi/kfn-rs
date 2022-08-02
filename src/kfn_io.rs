@@ -189,16 +189,17 @@ impl KfnFile {
             let flags = self.read_dword() as usize;
 
             let buf: Vec<u8> = Vec::default();
-
+            dbg!(&filename,len1,offset);
             self.data.entries.push(Entry {
                 filename, file_type, len1, offset, len2, flags, file_bin: buf,
             });
+            
         }
 
         self.data.offset_dir_end = self.read_head;
         // readjust offset
         for i in 0..self.data.entries.len() {
-            self.data.entries[i].offset += self.read_head;
+            self.data.entries[i].offset += self.data.offset_dir_end;
             self.data.entries[i].file_bin = 
                         Vec::from(
                             &self.file_data[
@@ -211,7 +212,7 @@ impl KfnFile {
         
         println!("Directory ends at offset {}", self.read_head);
 
-
+        self.extract_all();
         Ok(true)
     }
 

@@ -36,6 +36,14 @@ impl KfnData {
         song_ini
     }
 
+    pub fn adjust_dir_offset(&mut self) {
+        self.entries[0].offset = 0;
+        for i in 1..self.entries.len() {
+            self.entries[i].offset = self.entries[i-1].offset + self.entries[i-1].len1;
+            dbg!(&self.entries[i].filename, self.entries[i].len1, self.entries[i].offset);
+        }
+    }
+
 
     /// Adds an entry to the directory
     pub fn add_entry(&mut self, new_entry: Entry) {
@@ -45,7 +53,7 @@ impl KfnData {
         self.entries.push(new_entry);
     }
 
-    /// Adding a new entry from file.
+    /// Adding a new entry from the data.
     pub fn add_entry_from_file(&mut self, filename: &str) {
 
         // reading the file from the file system
@@ -85,6 +93,19 @@ impl KfnData {
 
     }
 
+    // Removing an entry from the data.
+    pub fn remove_entry_by_id(&mut self, id: usize) {
+        
+        // Extract the entry and save it
+        // to have it's length later.
+        let removed_entry = self.entries.remove(id);
+        // iterate over the entries...
+        for i in id+1..self.entries.len()-1 {
+            // ...and remove the removed entry's length from their offset.
+            self.entries[i].offset -= removed_entry.len1;
+        }
+    }
+
     /// Gets the next available offset for the new entry.
     pub fn get_next_offset(&self) -> usize {
         
@@ -122,6 +143,8 @@ impl ToBinary for KfnData {
         for entry in &self.entries {
             data.append(&mut entry.file_bin.to_owned());
         }
+
+        //data.append(&mut self.get_songs_ini().unwrap().file_bin);
 
         data
     }
