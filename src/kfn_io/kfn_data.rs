@@ -1,10 +1,16 @@
 use std::fs;
 
+use derivative::Derivative;
+use ini::Ini;
+
 use super::helpers::{Entry, FileType};
 use super::helpers::{u32_to_u8_arr, ToBinary};
 
+
+
 /// KfnHeader depicting the header contents of a KFN file
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct KfnData {
     /// The location of the Songs.ini file.
     pub path_song_ini: String,
@@ -12,15 +18,20 @@ pub struct KfnData {
     pub entries: Vec<Entry>,
     /// End of the directory header
     pub offset_dir_end: usize,
+    /// Representation of the last file of the directory, the Song.ini.
+    #[derivative(Debug="ignore")]
+    pub kfn_ini: Ini,
 }
 
 impl KfnData {
+    /// Creating a new KfnData with default values.
     pub fn new() -> Self {
         let dir_songs_ini = String::new();
         let entries = Vec::new();
         let offset_dir_end = 0;
+        let kfn_ini = Ini::default();
         Self {
-            path_song_ini: dir_songs_ini, entries, offset_dir_end,
+            path_song_ini: dir_songs_ini, entries, offset_dir_end, kfn_ini
         }
     }
 
@@ -36,11 +47,45 @@ impl KfnData {
         song_ini
     }
 
-    pub fn adjust_dir_offset(&mut self) {
+    /// Reads the INI file into the struct.
+    pub fn read_ini(&mut self) {
+        self.kfn_ini = Ini::load_from_str(String::from_utf8(self.get_songs_ini().unwrap().file_bin).unwrap().as_str()).unwrap();
+    }
+
+    /// Updates the ini file. Removes the Song.ini entry, then recreates the INI file from the struct.
+    pub fn update_ini(&mut self) {
+
+        // remove the entry
+        self.remove_entry_by_name("Song.ini".to_string());
+
+        // creating a destination vector for the data
+        let mut writer = Vec::new();
+        // write the data into the vector
+        self.kfn_ini.write_to(&mut writer).unwrap();
+        let data = writer.to_owned();
+
+        //  create a new entry
+        let new_entry = Entry {
+            file_type: FileType::SongIni,
+            filename: "Song.ini".to_string(),
+            len1: data.len(),
+            offset: 0,
+            len2: data.len(),
+            flags: usize::default(),
+            file_bin: data,
+        };
+        // and add the entry
+        self.add_entry(new_entry);
+        
+
+    }
+
+    /// Used internally before writing to binary, to readjust the offsets that became misaligned.
+    fn adjust_dir_offset(&mut self) {
         self.entries[0].offset = 0;
         for i in 1..self.entries.len() {
             self.entries[i].offset = self.entries[i-1].offset + self.entries[i-1].len1;
-            dbg!(&self.entries[i].filename, self.entries[i].len1, self.entries[i].offset);
+            
         }
     }
 
@@ -106,6 +151,28 @@ impl KfnData {
         }
     }
 
+    /// Removing an entry by name from the data. If it doesn't exist, it wont delete.
+    pub fn remove_entry_by_name(&mut self, name: String) {
+        
+        let mut id: isize = -1;
+        for i in 0..self.entries.len() {
+            if self.entries[i].filename == name {
+                id = i as isize;
+            }
+        }
+        if id == -1 {
+            return;
+        }
+        // Extract the entry and save it
+        // to have it's length later.
+        let removed_entry = self.entries.remove(id as usize);
+        // iterate over the entries...
+        for i in id as usize+1..self.entries.len()-1 {
+            // ...and remove the removed entry's length from their offset.
+            self.entries[i as usize].offset -= removed_entry.len1;
+        }
+    }
+
     /// Gets the next available offset for the new entry.
     pub fn get_next_offset(&self) -> usize {
         
@@ -119,7 +186,8 @@ impl KfnData {
 }
 
 impl ToBinary for KfnData {
-    fn to_binary(&self) -> Vec<u8> {
+    fn to_binary(&mut self) -> Vec<u8> {
+        self.adjust_dir_offset();
         let mut data: Vec<u8> = Vec::new();
         data.append(&mut u32_to_u8_arr(self.entries.len() as u32));
         for entry in &self.entries {

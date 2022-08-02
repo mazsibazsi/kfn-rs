@@ -37,7 +37,7 @@ impl KfnHeader {
 }
 
 impl ToBinary for KfnHeader {
-    fn to_binary(&self) -> Vec<u8> {
+    fn to_binary(&mut self) -> Vec<u8> {
         // create the data vector
         let mut data: Vec<u8> = Vec::new();
 

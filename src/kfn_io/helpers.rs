@@ -35,7 +35,7 @@ pub enum FileType {
 }
 
 pub trait ToBinary {
-    fn to_binary(&self) -> Vec<u8>;
+    fn to_binary(&mut self) -> Vec<u8>;
 }
 
 /// Helper to read the file type in the directory.

@@ -5,6 +5,7 @@ pub mod kfn_data;
 /// The header of the KFN file, containing non-essential data for playing, like the artist or title.
 pub mod kfn_header;
 
+
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -189,7 +190,7 @@ impl KfnFile {
             let flags = self.read_dword() as usize;
 
             let buf: Vec<u8> = Vec::default();
-            dbg!(&filename,len1,offset);
+
             self.data.entries.push(Entry {
                 filename, file_type, len1, offset, len2, flags, file_bin: buf,
             });
@@ -212,7 +213,8 @@ impl KfnFile {
         
         println!("Directory ends at offset {}", self.read_head);
 
-        self.extract_all();
+        self.data.read_ini();
+        
         Ok(true)
     }
 
