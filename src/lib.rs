@@ -3,8 +3,6 @@ pub mod kfn_rs;
 
 #[cfg(test)]
 mod tests {
-    use ini::Ini;
-
     use crate::kfn_rs::Kfn;
 
     #[test]
