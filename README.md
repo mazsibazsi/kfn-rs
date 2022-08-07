@@ -13,6 +13,7 @@
 
 ### Features
 - [x] Reading header
+- [X] Replicating header
 - [ ] Modifying header
 - [x] Extracting files
 - [ ] Repackaging files

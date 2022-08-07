@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 regex = "1"
-relm4 = { version = "0.4", features = ["macros"] }
-relm4-components = "0.4"
+dbg_hex = "0.1.1"
+rust-ini = "0.18"
+derivative = "2.2.0"
