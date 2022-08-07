@@ -1,4 +1,7 @@
+
+
 use std::fs;
+use std::path::Path;
 
 use derivative::Derivative;
 use ini::Ini;
@@ -6,6 +9,7 @@ use ini::Ini;
 use super::helpers::{Entry, FileType};
 use super::helpers::{u32_to_u8_arr, ToBinary};
 
+use super::kfn_ini::KfnIni;
 
 
 /// KfnHeader depicting the header contents of a KFN file
@@ -20,7 +24,7 @@ pub struct KfnData {
     pub offset_dir_end: usize,
     /// Representation of the last file of the directory, the Song.ini.
     #[derivative(Debug="ignore")]
-    pub kfn_ini: Ini,
+    pub song: KfnIni,
 }
 
 impl KfnData {
@@ -29,9 +33,10 @@ impl KfnData {
         let dir_songs_ini = String::new();
         let entries = Vec::new();
         let offset_dir_end = 0;
-        let kfn_ini = Ini::default();
+        let mut kfn_ini = KfnIni::new();
+        kfn_ini.populate();
         Self {
-            path_song_ini: dir_songs_ini, entries, offset_dir_end, kfn_ini
+            path_song_ini: dir_songs_ini, entries, offset_dir_end, song: kfn_ini
         }
     }
 
@@ -49,7 +54,7 @@ impl KfnData {
 
     /// Reads the INI file into the struct.
     pub fn read_ini(&mut self) {
-        self.kfn_ini = Ini::load_from_str(String::from_utf8(self.get_songs_ini().unwrap().file_bin).unwrap().as_str()).unwrap();
+        self.song.ini = Ini::load_from_str(String::from_utf8(self.get_songs_ini().unwrap().file_bin).unwrap().as_str()).unwrap();
     }
 
     /// Updates the ini file. Removes the Song.ini entry, then recreates the INI file from the struct.
@@ -58,10 +63,14 @@ impl KfnData {
         // remove the entry
         self.remove_entry_by_name("Song.ini");
 
+
+        // updating the ini
+        self.song.set_materials(self.entries.clone());
+
         // creating a destination vector for the data
         let mut writer = Vec::new();
         // write the data into the vector
-        self.kfn_ini.write_to(&mut writer).unwrap();
+        self.song.ini.write_to(&mut writer).unwrap();
         let data = writer.to_owned();
 
         //  create a new entry
@@ -122,6 +131,9 @@ impl KfnData {
             None => FileType::INVALID,
         };
 
+        let filename = Path::new(filename);
+        let filename = filename.file_name().unwrap().to_str().unwrap();
+
         // create an entry
         let new_entry = Entry {
             file_type: extension,
@@ -178,7 +190,9 @@ impl KfnData {
 
     /// Gets the next available offset for the new entry.
     pub fn get_next_offset(&self) -> usize {
-        
+        if self.entries.len() == 0 {
+            return 0;
+        }
         // get the id of the last entry
         let last_index = self.entries.len()-1;
 

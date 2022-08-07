@@ -4,6 +4,8 @@ pub mod helpers;
 pub mod kfn_data;
 /// The header of the KFN file, containing non-essential data for playing, like the artist or title.
 pub mod kfn_header;
+/// The Song.ini file, containing essential information about the KFN.
+pub mod kfn_ini;
 
 
 use std::fs;
@@ -49,7 +51,7 @@ pub struct Kfn {
 
 impl Kfn {
 
-    /// Constructor for creating a KfnFile struct.
+    /// Constructor for creating a Kfn struct from an existing file.
     /// Takes the filename as parameter.
     pub fn read(filename: &str) -> Self {
         Self { 
@@ -61,6 +63,16 @@ impl Kfn {
             header: KfnHeader::default(),
             data: KfnData::new(),
          }
+    }
+
+    /// Constructor for creating a new Kfn struct.
+    pub fn new() -> Self {
+        Self { 
+            file_data: Vec::new(), 
+            read_head: 0, 
+            header: KfnHeader::default(), 
+            data: KfnData::new()
+        }
     }
 
     /// Method for parsing the file itself.
@@ -260,19 +272,20 @@ impl Kfn {
     }
 
     /// Extracting all files.
-    pub fn extract_all(&mut self) {
+    pub fn extract_all(&mut self, target_dir: &str) {
         for i in 0..self.data.entries.len() {
-            self.extract(self.data.entries[i].clone(), self.data.entries[i].clone().filename);
+            let mut filename = target_dir.to_string();
+            filename.push_str(&self.data.entries[i].clone().filename.to_string());
+            dbg!(&filename);
+            self.extract(self.data.entries[i].clone(), filename);
         }
     }
 
     /// Extracting a single file from the entry to a deisgnated output.
     fn extract(&mut self, entry: Entry, output_filename: String) {
-        let mut path_str = self.header.title.clone();
-        path_str.push('/');
-        path_str.push_str(output_filename.as_str());
-        self.data.path_song_ini = path_str.clone();
-        let path = Path::new(&path_str);
+        //let mut path_str = self.header.title.clone();
+        dbg!(&output_filename);
+        let path = Path::new(&output_filename);
         let prefix = path.parent().unwrap();
         fs::create_dir_all(prefix).unwrap();
         // create output file
