@@ -92,4 +92,14 @@ mod tests {
 
         kfn.export("test/new_output.kfn");
     }
+
+    #[test]
+    fn read_anims_test() {
+
+        let mut kfn = Kfn::read("test/input.kfn");
+        
+        kfn.dump().unwrap();
+
+        kfn.data.song.read_eff();
+    }
 }

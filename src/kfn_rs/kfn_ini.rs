@@ -1,19 +1,24 @@
 use ini::Ini;
 
 use super::helpers::Entry;
+use super::helpers::eff::Eff;
+use super::helpers::eff::Anim;
 
 /// Wrapper for the INI file.
 #[derive(Default, Clone)]
 pub struct KfnIni {
     pub ini: Ini,
+    
+    eff: Vec<Eff>,
 }
 
 impl KfnIni {
     pub fn new() -> Self {
 
-        Self { ini: Ini::new() }
+        Self { ini: Ini::new(), eff: Vec::new(), }
     }
 
+    /// Populating the [General] section with empty data.
     pub fn populate(&mut self) {
 
         self.ini.with_section(Some("General"))
@@ -36,7 +41,46 @@ impl KfnIni {
             .set("KaraokeVersion", "")
             .set("VocalGuide", "")
             .set("KaraFunization", "");
+
+    }
+
+    pub fn read_eff(&self) {
+        
+        // get the number of effects to parse
+        let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap().to_string().parse::<usize>().unwrap();
+
+        for i in 1..effect_count {
             
+            let mut eff = String::from("Eff");
+
+            eff.push_str(&i.to_string());
+            
+            let section = self.ini.section(Some(eff)).unwrap();
+            
+            // TODO implement the rest of the properties
+
+            // number of animations
+            let nb_anim = section.get("NbAnim").unwrap().to_string().parse::<usize>().unwrap();
+            // list of animations in Anim# form
+            let anims: Vec<Anim> = Vec::new();
+            
+            dbg!(nb_anim);
+            if nb_anim != 0 {
+                for j in 0..nb_anim {
+
+                    let mut key = String::from("Anim");
+    
+                    key.push_str(&j.to_string());
+    
+                    dbg!(section.get(key));
+                    
+                    // needs parsing at '|'
+    
+                }
+            }
+            
+        }
+
     }
 
     /// Setting the source file for the KFN. This must be a music type file.
@@ -70,4 +114,6 @@ impl KfnIni {
         }
 
     }
+
+
 }

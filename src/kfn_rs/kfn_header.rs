@@ -1,5 +1,6 @@
 use std::fmt::Debug;
-use super::helpers::{u32_to_u8_arr, ToBinary};
+use crate::kfn_rs::helpers::u32_to_u8_arr;
+use crate::kfn_rs::helpers::file_type::ToBinary;
 
 /// Header, containing information about the KFN file. WIP
 #[derive(Debug, Default)]

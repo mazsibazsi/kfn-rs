@@ -6,8 +6,8 @@ use std::path::Path;
 use derivative::Derivative;
 use ini::Ini;
 
-use super::helpers::{Entry, FileType};
-use super::helpers::{u32_to_u8_arr, ToBinary};
+use super::helpers::{Entry, u32_to_u8_arr};
+use super::helpers::file_type::{FileType, ToBinary};
 
 use super::kfn_ini::KfnIni;
 
