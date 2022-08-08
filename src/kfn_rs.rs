@@ -271,40 +271,52 @@ impl Kfn {
         text
     }
 
-    /// Extracting all files.
-    pub fn extract_all(&mut self, target_dir: &str) {
-        for i in 0..self.data.entries.len() {
-            let mut filename = target_dir.to_string();
-            filename.push_str(&self.data.entries[i].clone().filename.to_string());
-            dbg!(&filename);
-            self.extract(self.data.entries[i].clone(), filename);
-        }
+    /// ----------------------
+    /// KFN MANIPULATION BLOCK
+    /// ----------------------
+     
+    /// Add file
+    pub fn add_file(&mut self, source: &str) {
+
+        self.data.add_entry_from_file(source);
+        self.update();
     }
 
-    /// Extracting a single file from the entry to a deisgnated output.
-    fn extract(&mut self, entry: Entry, output_filename: String) {
-        //let mut path_str = self.header.title.clone();
-        dbg!(&output_filename);
-        let path = Path::new(&output_filename);
-        let prefix = path.parent().unwrap();
-        fs::create_dir_all(prefix).unwrap();
-        // create output file
-        let mut output = File::create(path).unwrap();
-        // init buffer
-        let buf: Vec<u8> = Vec::from(&self.file_data[entry.offset..entry.offset+entry.len1]);
-        output.write_all(&buf).unwrap();
-        
+    /// Takes the source filename and sets it as the song to play during playback.
+    pub fn set_source(&mut self, target: &str) {
+
+        self.header.source_file = target.to_string();
+        self.data.song.set_source(target);
+        self.update();
     }
+
+    /// Remove file
+    pub fn remove_file(&mut self, target: &str) {
+
+        self.data.remove_entry_by_name(target);
+        self.update();
+    }
+
+    /// Update the ini file
+    fn update(&mut self) {
+
+        self.data.update_ini();
+    }
+
 
     /// Helper IO function for reading a byte
     fn read_byte(&mut self) -> u8 {
+        
         let result = self.file_data[self.read_head as usize];
+        
         self.read_head += 1;
+        
         (result & 0xFF).into()
     }
 
     /// Helper IO function for reading a word
     fn _read_word(&mut self) -> u16 {
+        
         let b1 = self.read_byte() as u16;
         let b2 = self.read_byte() as u16;
 
@@ -313,6 +325,7 @@ impl Kfn {
 
     /// Helper IO function for reading a dword
     fn read_dword(&mut self) -> u32 {
+        
         let b1 = self.read_byte() as u32;
         let b2 = self.read_byte() as u32;
         let b3 = self.read_byte() as u32;
@@ -323,18 +336,60 @@ impl Kfn {
 
     /// Helper IO function for reading a specified amount fo bytes
     fn read_bytes(&mut self, length: u32) -> Vec<u8> {
+        
         let mut array: Vec<u8> = Vec::with_capacity(length as usize);
+        
         for _ in 0..length {
+        
             array.push(self.read_byte());
         }
+        
         array
     }
 
+    /// Exporting to .kfn 
     pub fn export(&mut self, filename: &str) {
+        
         let mut data: Vec<u8> = Vec::new();
+        
         data.append(&mut self.header.to_binary());
         data.append(&mut self.data.to_binary());
         
         fs::write(filename, data).unwrap();
     }
+
+    /// Extracting all files.
+    pub fn extract_all(&mut self, target_dir: &str) {
+        
+        // iterate over all entries
+        for i in 0..self.data.entries.len() {
+        
+            // get the target directory into the filename
+            let mut filename = target_dir.to_string();
+
+            // add the actual filename
+            filename.push_str(&self.data.entries[i].clone().filename.to_string());
+        
+            // send it to extraction
+            self.extract(self.data.entries[i].clone(), filename);
+        }
+    }
+
+    /// Extracting a single file from the entry to a deisgnated output.
+    fn extract(&mut self, entry: Entry, output_filename: String) {
+        
+        // set the path and prefix
+        let path = Path::new(&output_filename);
+        let prefix = path.parent().unwrap();
+        
+        // create directories if they don't exist
+        fs::create_dir_all(prefix).unwrap();
+        
+        let mut output = File::create(path).unwrap();
+        
+        let buf: Vec<u8> = Vec::from(&self.file_data[entry.offset..entry.offset+entry.len1]);
+        
+        output.write_all(&buf).unwrap();
+    }
+    
 }
