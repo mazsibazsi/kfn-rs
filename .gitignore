@@ -1,4 +1,6 @@
 /target
 /.vscode
+.vscode
 *.kfn
 kfn_rs.dia.autosave
+.vscode2/launch.json
