@@ -92,4 +92,33 @@ mod tests {
 
         kfn.export("test/new_output.kfn");
     }
+
+    #[test]
+    fn read_anims_test() {
+
+        let mut kfn = Kfn::read("test/input.kfn");
+        
+        kfn.dump().unwrap();
+
+        kfn.data.song.read_eff();
+
+    }
+
+    #[test]
+    fn create_test_read_anims() {
+        let mut kfn = Kfn::read("test/input.kfn");
+        
+        kfn.dump().unwrap();
+
+        kfn.data.song.read_eff();
+        
+        kfn.data.song.ini.clear();
+
+        kfn.data.song.populate();
+        kfn.set_source("Ado - Odo (Karaoke).mp3");
+
+        kfn.data.song.set_eff();
+        kfn.data.update_ini();
+        kfn.export("test/new_output_ini.kfn");
+    }
 }

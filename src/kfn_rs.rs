@@ -8,6 +8,7 @@ pub mod kfn_header;
 pub mod kfn_ini;
 
 
+// standard lib
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -15,20 +16,26 @@ use std::path::Path;
 use std::string::FromUtf8Error;
 
 
-use helpers::FileType;
-use helpers::Entry;
-
-
+// regex lib
 use regex::Regex;
 
-use kfn_data::KfnData;
 
-use kfn_header::KfnHeader;
-
+// hex debugger lib
 use dbg_hex::dbg_hex;
 
-use self::helpers::ToBinary;
 
+// helpers
+use crate::kfn_rs::helpers::Entry;
+
+use crate::kfn_rs::helpers::file_type::FileType;
+use crate::kfn_rs::helpers::file_type::ToBinary;
+
+
+// header
+use kfn_header::KfnHeader;
+
+// data
+use kfn_data::KfnData;
 
 
 #[derive(Debug)]
@@ -386,7 +393,7 @@ impl Kfn {
         fs::create_dir_all(prefix).unwrap();
         
         let mut output = File::create(path).unwrap();
-        
+
         let buf: Vec<u8> = Vec::from(&self.file_data[entry.offset..entry.offset+entry.len1]);
         
         output.write_all(&buf).unwrap();
