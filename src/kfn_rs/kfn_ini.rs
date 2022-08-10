@@ -1,8 +1,9 @@
 use ini::Ini;
 
+use crate::kfn_rs::helpers::eff::AnimEntry;
+
 use super::helpers::Entry;
-use super::helpers::eff::Eff;
-use super::helpers::eff::Anim;
+use super::helpers::eff::{Eff, Effect, Anim, Action, TransType};
 
 /// Wrapper for the INI file.
 #[derive(Default, Clone)]
@@ -44,7 +45,7 @@ impl KfnIni {
 
     }
 
-    pub fn read_eff(&self) {
+    pub fn read_eff(&mut self) {
         
         // get the number of effects to parse
         let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap().to_string().parse::<usize>().unwrap();
@@ -62,25 +63,64 @@ impl KfnIni {
             // number of animations
             let nb_anim = section.get("NbAnim").unwrap().to_string().parse::<usize>().unwrap();
             // list of animations in Anim# form
-            let anims: Vec<Anim> = Vec::new();
+            let mut anims: Vec<Anim> = Vec::new();
             
             dbg!(nb_anim);
             if nb_anim != 0 {
                 for j in 0..nb_anim {
 
+                    let mut anim_entries: Vec<AnimEntry> = Vec::new();
+
                     let mut key = String::from("Anim");
     
                     key.push_str(&j.to_string());
     
-                    dbg!(section.get(key));
+                    let value = section.get(key).unwrap();
                     
-                    // needs parsing at '|'
-    
-                }
-            }
-            
-        }
+                    // the time in ms, when the anim occurs. The first one will always be the time.
+                    let time = value
+                                            .split('|')
+                                            .collect::<Vec<&str>>()
+                                            [0]
+                                            .parse::<usize>()
+                                            .unwrap();
+                    let remaining: Vec<&str> = value
+                                                    .split('|').collect::<Vec<&str>>()
+                                                    .split_first()
+                                                    .unwrap()
+                                                    .1
+                                                    .to_owned();
+                    
+                    for i in 0..remaining.len() {
+                        let tokens: Vec<&str> = remaining[i].split(',').collect();
 
+                        // first one is always the action
+                        let action = Action::from(tokens[0]);
+                        
+                        let mut effect: Option<Effect> = None;
+                        let mut trans_time: f64 = 0.0;
+                        let mut trans_type = TransType::default();
+
+                        for j in 0..tokens.len() {
+                            let key = tokens[j].split('=').collect::<Vec<&str>>()[0];
+                            let value = tokens[j].split('=').collect::<Vec<&str>>()[1];
+                            match key  {
+                                "Effect" => effect = Some(Effect::from(value)),
+                                "TransitionTime" => trans_time = value.parse().unwrap(),
+                                "TransitionType" => trans_type = TransType::from(value),
+                                &_ => ()
+                            }
+                        }
+
+                        let anim_entry = AnimEntry { action, effect, trans_time, trans_type };
+                        anim_entries.push(anim_entry)
+                    }
+                    anims.push(Anim {time, anim_entries});
+                } // for j in 0..nb_anim {
+            } // if nb_anim != 0 {
+            self.eff.push(Eff {anims});
+        } // for i in 1..effect_count {
+        dbg!(&self.eff);
     }
 
     /// Setting the source file for the KFN. This must be a music type file.
