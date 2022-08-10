@@ -113,7 +113,6 @@ impl KfnData {
 
     }
 
-
     /// Adds an entry to the directory
     pub fn add_entry(&mut self, new_entry: Entry) {
         /* let last_entry = self.entries[self.entries.len()].clone();

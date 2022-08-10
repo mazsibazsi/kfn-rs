@@ -1,7 +1,15 @@
 
 #[derive(Debug, Clone)]
 pub struct Eff {
+    pub id: usize,
     pub anims: Vec<Anim>,
+    pub syncs: Vec<usize>,
+    pub texts: Vec<String>,
+    pub trajectory: Trajectory,
+}
+
+impl Eff {
+
 }
 
 #[derive(Debug, Clone, Default)]
@@ -54,6 +62,19 @@ impl From<&str> for Action {
             "ChgFloatDepth"     => Action::ChgFloatDepth(value.parse::<f64>().unwrap()),
             "ChgTrajectory"     => Action::ChgTrajectory(value),
             &_                  => Action::None,
+        }
+    }
+}
+
+impl ToString for Action {
+    fn to_string(&self) -> String {
+        match self {
+            Action::ChgBgImg(val) => {
+                let mut ret = String::from("ChgBgImg:LibImage=");
+                ret.push_str(val.as_str());
+                ret
+            },
+            _ => " ".to_owned() 
         }
     }
 }
@@ -115,6 +136,36 @@ impl From<&str> for TransType {
             "Bounce3"           => TransType::Bounce3,
             "Bounce5"           => TransType::Bounce5,
             &_                  => TransType::None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub enum Trajectory {
+    PlainBottomToTop(u32, u32, u32, u32),
+}
+
+impl std::default::Default for Trajectory {
+    fn default() -> Self {
+        Trajectory::PlainBottomToTop(1, 1, 1, 1)
+    }
+}
+
+impl From<&str> for Trajectory {
+
+    fn from(s: &str) -> Self {
+        let key = s.split('*').collect::<Vec<&str>>()[0];
+        let value = s.split('*').collect::<Vec<&str>>();
+        dbg!(&value);
+        match key {
+            "PlainBottomToTop" => Trajectory::PlainBottomToTop(
+                                        value[1].parse().unwrap(),
+                                        value[2].parse().unwrap(),
+                                        value[3].parse().unwrap(),
+                                        value[4].parse().unwrap()
+                                    ),
+            &_ => Trajectory::PlainBottomToTop(1, 1, 1, 1),
         }
     }
 }

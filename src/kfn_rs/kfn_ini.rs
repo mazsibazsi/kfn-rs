@@ -1,6 +1,8 @@
 use ini::Ini;
+use ini::Properties;
 
 use crate::kfn_rs::helpers::eff::AnimEntry;
+use crate::kfn_rs::helpers::eff::Trajectory;
 
 use super::helpers::Entry;
 use super::helpers::eff::{Eff, Effect, Anim, Action, TransType};
@@ -10,13 +12,13 @@ use super::helpers::eff::{Eff, Effect, Anim, Action, TransType};
 pub struct KfnIni {
     pub ini: Ini,
     
-    eff: Vec<Eff>,
+    pub effs: Vec<Eff>,
 }
 
 impl KfnIni {
     pub fn new() -> Self {
 
-        Self { ini: Ini::new(), eff: Vec::new(), }
+        Self { ini: Ini::new(), effs: Vec::new(), }
     }
 
     /// Populating the [General] section with empty data.
@@ -59,13 +61,21 @@ impl KfnIni {
             let section = self.ini.section(Some(eff)).unwrap();
             
             // TODO implement the rest of the properties
+            let id = section.get("ID").unwrap().to_string().parse::<usize>().unwrap();
 
             // number of animations
             let nb_anim = section.get("NbAnim").unwrap().to_string().parse::<usize>().unwrap();
+            let text_count = section.get("TextCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
+            let trajectory = Trajectory::from(
+                section.get("Trajectory").unwrap_or_default()
+            );
             // list of animations in Anim# form
             let mut anims: Vec<Anim> = Vec::new();
+            let mut syncs: Vec<usize> = Vec::new();
+            let mut texts: Vec<String> = Vec::new();
             
             dbg!(nb_anim);
+            // reading the animations, if there are any.
             if nb_anim != 0 {
                 for j in 0..nb_anim {
 
@@ -118,9 +128,104 @@ impl KfnIni {
                     anims.push(Anim {time, anim_entries});
                 } // for j in 0..nb_anim {
             } // if nb_anim != 0 {
-            self.eff.push(Eff {anims});
+
+            // reading sync data
+            for (key, value) in section.iter() {
+                // guard clause, only read Sync#, not InSync 
+                if key.contains("Sync") && !key.contains("InSync") {
+                    let mut sync_times: Vec<usize> = value.split(',').collect::<Vec<&str>>().iter().map(|s| s.parse::<usize>().unwrap()).collect::<Vec<usize>>();
+                    syncs.append(&mut sync_times);
+                }
+            }
+            dbg!(&syncs);
+
+            if text_count != 0 {
+
+                for j in 0..text_count {
+                    let mut key = String::from("Text");
+                    key.push_str(&j.to_string());
+
+                    let value = section.get(key).unwrap();
+
+                    texts.push(value.to_owned());
+                }
+                
+            }
+            dbg!(&texts);
+            self.effs.push(Eff { id, anims, syncs, texts, trajectory});
         } // for i in 1..effect_count {
-        dbg!(&self.eff);
+       
+    }
+
+    /// Method for setting up the effect in the Ini file.
+    pub fn set_eff(&mut self) {
+
+        // Set the EffectCount - number of Eff sections in the Ini.
+        self.ini.section_mut(Some("General")).unwrap().insert("EffectCount", self.effs.len().to_string());
+
+        // Iterate through ID of effects
+        for eff_n in 0..self.effs.clone().len() {
+            
+            // prepare for section header
+            let mut eff_section = String::from("Eff");
+
+            // push number to section header, indexing starts at 1!
+            eff_section.push_str((eff_n + 1).to_string().as_str());
+            
+            // get essential fields
+            self.ini.with_section(Some(eff_section.clone())).set("ID", self.effs[eff_n].id.to_string());
+            self.ini.with_section(Some(eff_section.clone())).set("NbAnim", self.effs[eff_n].anims.len().to_string());
+            self.ini.with_section(Some(eff_section.clone())).set("TextCount", self.effs[eff_n].texts.len().to_string());
+            
+            // iterate through Anim# 
+            for anim_n in 0..self.effs[eff_n].anims.len() {
+
+                // get into the appropriate section
+                let mut section = self.ini.with_section(Some(eff_section.as_str()));
+
+                // clone the Anim#
+                let anim = self.effs[eff_n].anims[anim_n].clone();
+
+                // prepare string for manipulation
+                let mut anim_key = String::from("Anim");
+                // attach row #
+                anim_key.push_str(anim_n.to_string().as_str());
+
+                // prepare value
+                let mut anim_val = String::new();
+
+                // add time, as that is always the first value in line
+                anim_val.push_str(anim.time.to_string().as_str());
+
+                // separator
+                anim_val.push('|');
+
+                // iterate through the entries
+                for anim_entry in anim.anim_entries {
+                    // and push the appropriate value
+                    anim_val.push_str(anim_entry.action.to_string().as_str())
+                }
+                
+                // lastly set it
+                section.set(anim_key, anim_val);
+                
+            }
+        
+            self.ini.with_section(Some(eff_section.clone())).set("Sync0", self.effs[eff_n].syncs.to_owned().iter().map(|n| n.to_string()).collect::<Vec<String>>().join(","));
+            
+            for text_n in 0..self.effs[eff_n].texts.len() {
+                let mut section = self.ini.with_section(Some(eff_section.as_str()));
+
+                let text_value = self.effs[eff_n].texts[text_n].clone();
+
+                // prepare string for manipulation
+                let mut text_key = String::from("Text");
+                // attach row #
+                text_key.push_str(text_n.to_string().as_str());
+
+                section.set(text_key, text_value);
+            }
+        }
     }
 
     /// Setting the source file for the KFN. This must be a music type file.
