@@ -6,7 +6,7 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 license_file = "COPYING"
 keywords = ["karaoke", "reverse-engineering", "kfn", "karafun"]
-
+description = "Karaoke .kfn file IO library written in Rust."
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
