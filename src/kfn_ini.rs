@@ -8,15 +8,19 @@ use crate::kfn_header::KfnHeader;
 use super::helpers::Entry;
 
 
-/// Wrapper for the INI file.
+/// Wrapper for the Song.ini file.
 #[derive(Default, Clone)]
 pub struct KfnIni {
-    pub ini: Ini,
     
+    /// The Song.ini file itself, represented using the ini-rust library.
+    /// To learn more: https://github.com/zonyitoo/rust-ini
+    pub ini: Ini,
+    /// Representation of the various effects, texts and syncs.
     pub effs: Vec<Eff>,
 }
 
 impl KfnIni {
+    /// Creating a new ini file.
     pub fn new() -> Self {
 
         Self { ini: Ini::new(), effs: Vec::new(), }
@@ -74,6 +78,7 @@ impl KfnIni {
 
     }
 
+    /// Reading the Eff# headed sections
     pub fn read_eff(&mut self) {
         
         // get the number of effects to parse
@@ -179,7 +184,7 @@ impl KfnIni {
                 
             }
             dbg!(&texts);
-            self.effs.push(Eff { id, anims, syncs, texts, trajectory});
+            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory: trajectory});
         } // for i in 1..effect_count {
        
     }
