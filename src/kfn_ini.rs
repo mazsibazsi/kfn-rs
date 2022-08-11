@@ -1,11 +1,12 @@
-use ini::Ini;
-use ini::Properties;
+pub mod eff;
 
-use crate::kfn_rs::helpers::eff::AnimEntry;
-use crate::kfn_rs::helpers::eff::Trajectory;
+use ini::Ini;
+
+use eff::{AnimEntry, Trajectory, Eff, Effect, Anim, Action, TransType};
+use crate::kfn_header::KfnHeader;
 
 use super::helpers::Entry;
-use super::helpers::eff::{Eff, Effect, Anim, Action, TransType};
+
 
 /// Wrapper for the INI file.
 #[derive(Default, Clone)]
@@ -21,8 +22,8 @@ impl KfnIni {
         Self { ini: Ini::new(), effs: Vec::new(), }
     }
 
-    /// Populating the [General] section with empty data.
-    pub fn populate(&mut self) {
+    /// Populating the General section with empty data.
+    pub fn populate_empty(&mut self) {
 
         self.ini.with_section(Some("General"))
             .set("Title", "")
@@ -33,6 +34,32 @@ impl KfnIni {
             .set("Track", "")
             .set("GenreID", "-1")
             .set("Copyright", "")
+            .set("Comment", "")
+            .set("Source", "")
+            .set("EffectCount", "")
+            .set("LanguageID", "")
+            .set("DiffMen", "")
+            .set("DiffWomen", "")
+            .set("KFNType", "0")
+            .set("Properties", "")
+            .set("KaraokeVersion", "")
+            .set("VocalGuide", "")
+            .set("KaraFunization", "");
+
+    }
+
+    /// Populating the General section with empty data.
+    pub fn populate_from_header(&mut self, header: KfnHeader) {
+
+        self.ini.with_section(Some("General"))
+            .set("Title", header.title)
+            .set("Artist", header.artist)
+            .set("Album", header.album)
+            .set("Composer", header.composer)
+            .set("Year", header.year)
+            .set("Track", header.trak)
+            .set("GenreID", header.genre.to_string())
+            .set("Copyright", header.copyright)
             .set("Comment", "")
             .set("Source", "")
             .set("EffectCount", "")

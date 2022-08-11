@@ -36,7 +36,7 @@ impl KfnData {
         let offset_dir_end = 0;
         let mut kfn_ini = KfnIni::new();
 
-        kfn_ini.populate();
+        kfn_ini.populate_empty();
         
         Self {
             path_song_ini: dir_songs_ini, entries, offset_dir_end, song: kfn_ini
