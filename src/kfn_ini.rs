@@ -55,6 +55,10 @@ impl KfnIni {
     /// Populating the General section with empty data.
     pub fn populate_from_header(&mut self, header: KfnHeader) {
 
+        let mut source = String::from("1,I,");
+        source.push_str(&header.source_file);
+
+
         self.ini.with_section(Some("General"))
             .set("Title", header.title)
             .set("Artist", header.artist)
@@ -65,16 +69,16 @@ impl KfnIni {
             .set("GenreID", header.genre.to_string())
             .set("Copyright", header.copyright)
             .set("Comment", "")
-            .set("Source", "")
+            .set("Source", source)
             .set("EffectCount", "")
-            .set("LanguageID", "")
-            .set("DiffMen", "")
-            .set("DiffWomen", "")
-            .set("KFNType", "0")
+            .set("LanguageID", header.language)
+            .set("DiffMen", header.diff_men.to_string())
+            .set("DiffWomen", header.diff_women.to_string())
+            .set("KFNType", header.kfn_type.to_string())
             .set("Properties", "")
             .set("KaraokeVersion", "")
             .set("VocalGuide", "")
-            .set("KaraFunization", "");
+            .set("KaraFunization", header.karafunizer);
 
     }
 
