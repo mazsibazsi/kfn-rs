@@ -1,28 +1,33 @@
-use ini::Ini;
-use ini::Properties;
+pub mod eff;
 
-use crate::kfn_rs::helpers::eff::AnimEntry;
-use crate::kfn_rs::helpers::eff::Trajectory;
+use ini::Ini;
+
+use eff::{AnimEntry, Trajectory, Eff, Effect, Anim, Action, TransType};
+use crate::kfn_header::KfnHeader;
 
 use super::helpers::Entry;
-use super::helpers::eff::{Eff, Effect, Anim, Action, TransType};
 
-/// Wrapper for the INI file.
+
+/// Wrapper for the Song.ini file.
 #[derive(Default, Clone)]
 pub struct KfnIni {
-    pub ini: Ini,
     
+    /// The Song.ini file itself, represented using the ini-rust library.
+    /// To learn more: https://github.com/zonyitoo/rust-ini
+    pub ini: Ini,
+    /// Representation of the various effects, texts and syncs.
     pub effs: Vec<Eff>,
 }
 
 impl KfnIni {
+    /// Creating a new ini file.
     pub fn new() -> Self {
 
         Self { ini: Ini::new(), effs: Vec::new(), }
     }
 
-    /// Populating the [General] section with empty data.
-    pub fn populate(&mut self) {
+    /// Populating the General section with empty data.
+    pub fn populate_empty(&mut self) {
 
         self.ini.with_section(Some("General"))
             .set("Title", "")
@@ -47,6 +52,33 @@ impl KfnIni {
 
     }
 
+    /// Populating the General section with empty data.
+    pub fn populate_from_header(&mut self, header: KfnHeader) {
+
+        self.ini.with_section(Some("General"))
+            .set("Title", header.title)
+            .set("Artist", header.artist)
+            .set("Album", header.album)
+            .set("Composer", header.composer)
+            .set("Year", header.year)
+            .set("Track", header.trak)
+            .set("GenreID", header.genre.to_string())
+            .set("Copyright", header.copyright)
+            .set("Comment", "")
+            .set("Source", "")
+            .set("EffectCount", "")
+            .set("LanguageID", "")
+            .set("DiffMen", "")
+            .set("DiffWomen", "")
+            .set("KFNType", "0")
+            .set("Properties", "")
+            .set("KaraokeVersion", "")
+            .set("VocalGuide", "")
+            .set("KaraFunization", "");
+
+    }
+
+    /// Reading the Eff# headed sections
     pub fn read_eff(&mut self) {
         
         // get the number of effects to parse
@@ -152,7 +184,7 @@ impl KfnIni {
                 
             }
             dbg!(&texts);
-            self.effs.push(Eff { id, anims, syncs, texts, trajectory});
+            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory: trajectory});
         } // for i in 1..effect_count {
        
     }

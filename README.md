@@ -1,7 +1,8 @@
 # kfn-rs
 
 ## kfn-rs project
-### Having a working MVP KaraFun clone written in Rust.
+### Karaoke .kfn file IO library written in Rust.
+### The goal of the project, is to have a working KFN I/O library, which can be use to build a player and editor for these kind of karaoke file formats.
 
 ## kfn-io library
 ### Based on Ulduzsoft's KFN Dumper.
@@ -13,9 +14,10 @@
 
 ### Features
 - [x] Reading header
+- [x] Modifying header
 - [X] Replicating header
-- [ ] Modifying header
 - [x] Extracting files
-- [ ] Repackaging files
-- [ ] Extracting songtext
-- [ ] Modifying songtext
+- [x] Repackaging files
+- [x] Extracting .ini (songtext, animations, sync timestamps)
+- [x] Modifying .ini (songtext, animations, sync timestamps)
+- [x] Repackaging .ini (songtext, animations, sync timestamps)

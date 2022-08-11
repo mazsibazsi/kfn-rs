@@ -1,17 +1,25 @@
-
+/// Representation of an Eff# headed section, which contains animations, texts, and sync data.
 #[derive(Debug, Clone)]
 pub struct Eff {
+    /// The ID of the Eff# layer.
+    /// Te background layer's ID is always 51.
+    /// Every following starts from 1.
     pub id: usize,
+    /// Collection of the animations.
     pub anims: Vec<Anim>,
+    /// Collection of the sync timestamps in ms.
     pub syncs: Vec<usize>,
+    /// Collection of the songtext lines. Separators: '/' ' '
     pub texts: Vec<String>,
-    pub trajectory: Trajectory,
+    /// Initial trajectory of the layer.
+    pub initial_trajectory: Trajectory,
 }
 
 impl Eff {
 
 }
 
+/// Representation of a collection of animations executed at the same time.
 #[derive(Debug, Clone, Default)]
 pub struct Anim {
     pub time: usize,
@@ -79,6 +87,7 @@ impl ToString for Action {
     }
 }
 
+/// Representation of the available visual effects.
 #[derive(Debug, Clone, Default)]
 pub enum Effect {
     #[default]
@@ -105,6 +114,7 @@ impl From<&str> for Effect {
     }
 }
 
+/// Representation of the various transition types.
 #[derive(Debug, Clone, Default)]
 pub enum TransType {
     #[default]
@@ -140,7 +150,7 @@ impl From<&str> for TransType {
     }
 }
 
-
+/// Representation of the trajectories the text or image can take.
 #[derive(Debug, Clone)]
 pub enum Trajectory {
     PlainBottomToTop(u32, u32, u32, u32),

@@ -5,3 +5,5 @@
 *.kfn
 kfn_rs.dia.autosave
 .vscode/launch.json
+.gitignore
+/test

@@ -1,7 +1,13 @@
 [package]
 name = "kfn-rs"
-version = "0.1.0"
+version = "0.1.0-alpha"
+authors = ["Balázs Máhli"]
 edition = "2021"
+license = "GPL-3.0-or-later"
+license_file = "COPYING"
+keywords = ["karaoke", "reverse-engineering", "kfn", "karafun"]
+
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

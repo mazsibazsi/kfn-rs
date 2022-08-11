@@ -1,4 +1,4 @@
-pub mod eff;
+
 pub mod file_type;
 
 use std::{fmt::Write};

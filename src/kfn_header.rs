@@ -1,9 +1,9 @@
 use std::fmt::Debug;
-use crate::kfn_rs::helpers::u32_to_u8_arr;
-use crate::kfn_rs::helpers::file_type::ToBinary;
+use crate::helpers::u32_to_u8_arr;
+use crate::helpers::file_type::ToBinary;
 
 /// Header, containing information about the KFN file. WIP
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct KfnHeader {
     /// Difficulty for men. Value between 1 to 5.
     pub diff_men: u32,  
@@ -20,6 +20,7 @@ pub struct KfnHeader {
     pub title: String,
     pub artist: String,
     pub composer: String,
+    pub comment: String,
     pub copyright: String,
     pub source_file: String,
     pub year: String,
@@ -104,6 +105,11 @@ impl ToBinary for KfnHeader {
         data.push(2_u8);
         data.append(&mut u32_to_u8_arr(self.composer.len() as u32));
         data.append(&mut self.composer.as_bytes().to_owned());
+        // comment
+        data.append(&mut "COMM".as_bytes().to_owned());
+        data.push(2_u8);
+        data.append(&mut u32_to_u8_arr(self.comment.len() as u32));
+        data.append(&mut self.comment.as_bytes().to_owned());
         // copyright
         data.append(&mut "COPY".as_bytes().to_owned());
         data.push(2_u8);
