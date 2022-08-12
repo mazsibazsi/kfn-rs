@@ -1,6 +1,5 @@
 mod tests;
 
-
 /// Helpers, containing methods for handling the data and filetypes.
 pub mod helpers;
 /// Module for handling the main data of the KFN file, like songtexts and sync times.
@@ -10,29 +9,16 @@ pub mod kfn_header;
 /// The Song.ini file, containing essential information about the KFN.
 pub mod kfn_ini;
 
-
 // standard lib
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::string::FromUtf8Error;
-
-
-// regex lib
-use regex::Regex;
-
-
-// hex debugger lib
-use dbg_hex::dbg_hex;
-
 
 // helpers
 use crate::helpers::Entry;
-
 use crate::helpers::file_type::FileType;
 use crate::helpers::file_type::ToBinary;
-
 
 // header
 use crate::kfn_header::KfnHeader;
@@ -52,12 +38,17 @@ pub struct Kfn {
     read_head: usize,
     
     /// The header data of the file.
-    pub header: KfnHeader,
+    header: KfnHeader,
+
     /// The data container for the file.
-    pub data: KfnData,
+    data: KfnData,
 }
 
-
+#[derive(Debug)]
+pub enum KfnParseError {
+    InvalidHeaderSignature(String),
+    Utf8ConversionError,
+}
 
 impl Kfn {
 
@@ -85,19 +76,26 @@ impl Kfn {
         }
     }
 
+
     /// Method for parsing the file itself.
-    pub fn dump(&mut self) -> Result<bool, FromUtf8Error> {
+    pub fn parse(&mut self) -> Result<bool, KfnParseError> {
         // read file signature
-        let signature = String::from_utf8(self.read_bytes(4))?;
+        let signature = match String::from_utf8(self.read_bytes(4)) {
+            Ok(s) => s,
+            Err(e) => return Err(KfnParseError::Utf8ConversionError),
+        };
         // if file signature is not KFNB, end parsing
         if signature != "KFNB" {
-            panic!("Bad signature error");
+            return Err(KfnParseError::InvalidHeaderSignature(signature));
         }
         
         // reading the header
         loop {
             // get signature
-            let signature = String::from_utf8(self.read_bytes(4))?;
+            let signature = match String::from_utf8(self.read_bytes(4)) {
+                Ok(s) => s,
+                Err(e) => return Err(KfnParseError::Utf8ConversionError),
+            };
             // get type of the line
             let l_type = self.read_byte();
             let len_or_value = self.read_dword();
@@ -105,7 +103,9 @@ impl Kfn {
             // match for line type > if type 1, it's a value, if type 2 -> it contains header information
             match l_type {
                 1 => {
+
                     match signature.as_str() {
+
                         "DIFM" => {
                             self.header.diff_men = len_or_value;
                         },
@@ -135,7 +135,6 @@ impl Kfn {
                         },
                         _ => println!("{}, type 1, value {:x}", signature, len_or_value),
                     }
-                    //println!("{}, type 1, value {:x}", signature, len_or_value);
                 },
                 2 => {
                     // get data into buffer
@@ -143,6 +142,7 @@ impl Kfn {
                     let buffer_str = String::from_utf8(buffer.clone()).unwrap_or("Unknown".to_string());
                     // match header info and insert into header
                     match signature.as_str() {
+
                         "FLID" => {
                             self.header.flid = buffer_str;
                         },
@@ -181,8 +181,7 @@ impl Kfn {
                         },
                         _ => ()
                     }
-                    //
-                    //println!("{}, type 2, length {:#?}, hex: {}, string: {:?}", signature, len_or_value, dump_hex(&buffer), String::from_utf8(buffer));
+                   
                 },
                 _ => {
 
@@ -193,9 +192,7 @@ impl Kfn {
                 break;
             }
         }
-        //println!("header end: {}", self.read_head);
-        
-        dbg_hex!(&self.header);
+
         // reading the directory
         let num_files = self.read_dword();
         println!("# of files: {}", num_files);
@@ -205,7 +202,7 @@ impl Kfn {
             let filename_len = self.read_dword();
             let filename = match String::from_utf8(self.read_bytes(filename_len)) {
                 Ok(s) => s,
-                Err(e) => return Err(e),
+                Err(e) => return Err(KfnParseError::Utf8ConversionError),
             };
             let file_type = FileType::from(self.read_dword());
             let len1 = self.read_dword() as usize;
@@ -234,61 +231,27 @@ impl Kfn {
                             ]
                         );
         }
-        
-        //println!("Directory ends at offset {}", self.read_head);
 
         self.data.read_ini();
         
         Ok(true)
     }
 
-    /// Extracting songtexts into a vector.
-    pub fn get_syncs(&mut self) -> Vec<usize> {
-
-        let mut syncs: Vec<usize> = Vec::new();
-
-        let contents_raw = fs::read_to_string(&self.data.path_song_ini).unwrap();
-        let contents: Vec<&str> = contents_raw.split("\n").collect();
-        for line in contents {
-            let re = Regex::new(r"^Sync\d+=(.*)$").unwrap();
-            
-            if re.is_match(line) {
-                let syncline_str = re.captures(line).unwrap().get(1).map_or("", |m| m.as_str());
-                let mut syncline_split: Vec<usize> = syncline_str.split(",").map(|n| usize::from_str_radix(n, 10).unwrap()).collect();
-                syncs.append(&mut syncline_split);
-            }
-        }
-        syncs
-    }
-
-    /// Extracting sync points into a vector.
-    pub fn get_text(&mut self) -> Vec<String> {
-
-        let mut text: Vec<String> = Vec::new();
-
-        let contents_raw = fs::read_to_string(&self.data.path_song_ini).unwrap();
-        let contents: Vec<&str> = contents_raw.split("\n").collect();
-        for line in contents {
-            let re = Regex::new(r"^Text\d+=(.*)$").unwrap();
-            if re.is_match(line) {
-                let textline_str = re.captures(line).unwrap().get(1).map_or("", |m| m.as_str());
-                let mut textline_split: Vec<String> = textline_str.split(&['/', ' ', '\n']).map(|s| s.to_string()).collect();
-                if textline_str != "" {
-                    text.append(&mut textline_split);
-                }
-            }
-        }
-        text
-    }
-
-    /// ----------------------
-    /// KFN MANIPULATION BLOCK
-    /// ----------------------
+    // ----------------------
+    // KFN MANIPULATION BLOCK
+    // ----------------------
      
     /// Add file
     pub fn add_file(&mut self, source: &str) {
 
         self.data.add_entry_from_file(source);
+        self.update();
+    }
+
+    /// Remove file
+    pub fn remove_file(&mut self, target: &str) {
+
+        self.data.remove_entry_by_name(target);
         self.update();
     }
 
@@ -300,20 +263,64 @@ impl Kfn {
         self.update();
     }
 
-    /// Remove file
-    pub fn remove_file(&mut self, target: &str) {
-
-        self.data.remove_entry_by_name(target);
-        self.update();
-    }
-
-    /// Update the ini file
-    fn update(&mut self) {
+    /// Update the ini file from header
+    pub fn update(&mut self) {
 
         self.data.song.populate_from_header(self.header.clone());
         self.data.update_ini();
     }
 
+
+    /// Exporting to .kfn 
+    pub fn export(&mut self, filename: &str) {
+        
+        let mut data: Vec<u8> = Vec::new();
+        
+        data.append(&mut self.header.to_binary());
+        data.append(&mut self.data.to_binary());
+        
+        fs::write(filename, data).unwrap();
+    }
+
+    /// Extracting all files.
+    pub fn extract_all(&mut self, target_dir: &str) {
+        
+        // iterate over all entries
+        for i in 0..self.data.entries.len() {
+        
+            // get the target directory into the filename
+            let mut filename = target_dir.to_string();
+
+            // add the actual filename
+            filename.push_str(&self.data.entries[i].clone().filename.to_string());
+        
+            // send it to extraction
+            self.extract(self.data.entries[i].clone(), &filename);
+        }
+    }
+
+    /// Extracting a single file from the entry to a deisgnated output.
+    pub fn extract(&mut self, entry: Entry, output_filename: &str) {
+        
+        // set the path and prefix
+        let path = Path::new(&output_filename);
+        let prefix = path.parent().unwrap();
+        
+        // create directories if they don't exist
+        fs::create_dir_all(prefix).unwrap();
+        
+        let mut output = File::create(path).unwrap();
+
+        let buf: Vec<u8> = Vec::from(entry.file_bin);
+        
+        output.write_all(&buf).unwrap();
+    }
+    
+
+
+    // -----------------------
+    // BINARY HELPER FUNCTIONS
+    //------------------------
 
     /// Helper IO function for reading a byte
     fn read_byte(&mut self) -> u8 {
@@ -323,15 +330,6 @@ impl Kfn {
         self.read_head += 1;
         
         (result & 0xFF).into()
-    }
-
-    /// Helper IO function for reading a word
-    fn _read_word(&mut self) -> u16 {
-        
-        let b1 = self.read_byte() as u16;
-        let b2 = self.read_byte() as u16;
-
-        b2 << 8 | b1
     }
 
     /// Helper IO function for reading a dword
@@ -358,49 +356,4 @@ impl Kfn {
         array
     }
 
-    /// Exporting to .kfn 
-    pub fn export(&mut self, filename: &str) {
-        
-        let mut data: Vec<u8> = Vec::new();
-        
-        data.append(&mut self.header.to_binary());
-        data.append(&mut self.data.to_binary());
-        
-        fs::write(filename, data).unwrap();
-    }
-
-    /// Extracting all files.
-    pub fn extract_all(&mut self, target_dir: &str) {
-        
-        // iterate over all entries
-        for i in 0..self.data.entries.len() {
-        
-            // get the target directory into the filename
-            let mut filename = target_dir.to_string();
-
-            // add the actual filename
-            filename.push_str(&self.data.entries[i].clone().filename.to_string());
-        
-            // send it to extraction
-            self.extract(self.data.entries[i].clone(), filename);
-        }
-    }
-
-    /// Extracting a single file from the entry to a deisgnated output.
-    fn extract(&mut self, entry: Entry, output_filename: String) {
-        
-        // set the path and prefix
-        let path = Path::new(&output_filename);
-        let prefix = path.parent().unwrap();
-        
-        // create directories if they don't exist
-        fs::create_dir_all(prefix).unwrap();
-        
-        let mut output = File::create(path).unwrap();
-
-        let buf: Vec<u8> = Vec::from(&self.file_data[entry.offset..entry.offset+entry.len1]);
-        
-        output.write_all(&buf).unwrap();
-    }
-    
 }

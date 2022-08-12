@@ -7,13 +7,13 @@ mod tests {
 
         let mut kfn = Kfn::read("test/input.kfn");
 
-        match kfn.dump() {
+        match kfn.parse() {
             Ok(true) => {
             },
             Ok(false) => {
             },
-            Err(error) => {
-                println!("{}", error);
+            Err(_) => {
+                panic!("KfnParseError");
             }
         }
         
@@ -24,7 +24,7 @@ mod tests {
         
         let mut kfn = Kfn::read("test/input.kfn");
         
-        kfn.dump().unwrap();
+        kfn.parse().unwrap();
         
         kfn.export("test/output_write_test.kfn");
     }
@@ -34,7 +34,7 @@ mod tests {
 
         let mut kfn = Kfn::read("test/input.kfn");
 
-        kfn.dump().unwrap();
+        kfn.parse().unwrap();
         
         kfn.data.read_ini();
         kfn.data.update_ini();
@@ -47,7 +47,7 @@ mod tests {
 
         let mut kfn = Kfn::read("test/input.kfn");
 
-        kfn.dump().unwrap();
+        kfn.parse().unwrap();
 
         kfn.add_file("test/art_for_test.jpg");
 
@@ -59,9 +59,9 @@ mod tests {
     fn remove_entry_test() {
 
         let mut kfn = Kfn::read("test/input.kfn");
-        kfn.dump().unwrap();
+        kfn.parse().unwrap();
 
-        kfn.remove_file("odo_p1.jpg");
+        //kfn.remove_file("target")
 
         kfn.export("test/output_remove_test.kfn");
     }
@@ -71,9 +71,9 @@ mod tests {
 
         let mut kfn = Kfn::read("test/input.kfn");
 
-        kfn.dump().unwrap();
+        kfn.parse().unwrap();
 
-        kfn.extract_all("test/");
+        kfn.extract_all("test/extract/");
     }
 
     #[test]
@@ -81,11 +81,10 @@ mod tests {
 
         let mut kfn = Kfn::new();
 
-        kfn.add_file("test/Ado - Odo.mp3");
-        kfn.add_file("test/Ado - Odo (Karaoke).mp3");
+        kfn.add_file("test/insert.mp3");
         kfn.add_file("test/art_for_test.jpg");
 
-        kfn.set_source("Ado - Odo (Karaoke).mp3");
+        kfn.set_source("insert.mp3");
 
         kfn.export("test/new_output.kfn");
     }
@@ -95,7 +94,7 @@ mod tests {
 
         let mut kfn = Kfn::read("test/input.kfn");
         
-        kfn.dump().unwrap();
+        kfn.parse().unwrap();
 
         kfn.data.song.read_eff();
 
@@ -105,7 +104,7 @@ mod tests {
     fn create_test_read_anims() {
         let mut kfn = Kfn::read("test/input.kfn");
         
-        kfn.dump().unwrap();
+        kfn.parse().unwrap();
 
         kfn.data.song.read_eff();
         
@@ -113,10 +112,14 @@ mod tests {
 
         kfn.data.song.populate_empty();
         
-        kfn.set_source("Ado - Odo (Karaoke).mp3");
+        kfn.add_file("test/insert.mp3");
+        kfn.set_source("insert.mp3");
 
         kfn.data.song.set_eff();
         kfn.data.update_ini();
+
+        kfn.extract(kfn.data.get_entry_by_name("Song.ini").unwrap(), "test/new_Song.ini");
+
         kfn.export("test/new_output_ini.kfn");
     }
 }

@@ -1,8 +1,12 @@
 pub mod eff;
+pub mod trajectory;
 
 use ini::Ini;
 
-use eff::{AnimEntry, Trajectory, Eff, Effect, Anim, Action, TransType};
+use eff::{AnimEntry, Eff, Effect, Action, TransType, Anim};
+
+use trajectory::Trajectory;
+
 use crate::kfn_header::KfnHeader;
 
 use super::helpers::Entry;
@@ -208,11 +212,15 @@ impl KfnIni {
             // push number to section header, indexing starts at 1!
             eff_section.push_str((eff_n + 1).to_string().as_str());
             
+            let mut section = self.ini.with_section(Some(eff_section.clone()));
+            let eff = &self.effs[eff_n];
             // get essential fields
-            self.ini.with_section(Some(eff_section.clone())).set("ID", self.effs[eff_n].id.to_string());
-            self.ini.with_section(Some(eff_section.clone())).set("NbAnim", self.effs[eff_n].anims.len().to_string());
-            self.ini.with_section(Some(eff_section.clone())).set("TextCount", self.effs[eff_n].texts.len().to_string());
-            
+            section
+                .set("ID", &eff.id.to_string())
+                .set("NbAnim", eff.anims.len().to_string())
+                .set("TextCount", eff.texts.len().to_string())
+                .set("Trajectory", eff.initial_trajectory.to_string());
+
             // iterate through Anim# 
             for anim_n in 0..self.effs[eff_n].anims.len() {
 
