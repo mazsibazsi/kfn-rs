@@ -114,7 +114,7 @@ impl KfnIni {
             let mut syncs: Vec<usize> = Vec::new();
             let mut texts: Vec<String> = Vec::new();
             
-            dbg!(nb_anim);
+            //dbg!(nb_anim);
             // reading the animations, if there are any.
             if nb_anim != 0 {
                 for j in 0..nb_anim {
@@ -177,7 +177,7 @@ impl KfnIni {
                     syncs.append(&mut sync_times);
                 }
             }
-            dbg!(&syncs);
+            //dbg!(&syncs);
 
             if text_count != 0 {
 
@@ -191,10 +191,16 @@ impl KfnIni {
                 }
                 
             }
-            dbg!(&texts);
+            //dbg!(&texts);
             self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory: trajectory});
         } // for i in 1..effect_count {
        
+    }
+
+    /// Returns the name of the source sound file. 
+    pub fn get_source_name(&self) -> String {
+        dbg!(self.ini.get_from(Some("General"), "Source").unwrap()[4..].to_string());
+        self.ini.get_from(Some("General"), "Source").unwrap()[4..].to_string()
     }
 
     /// Method for setting up the effect in the Ini file.

@@ -1,11 +1,13 @@
 #[cfg(test)]
 mod tests {
+    use std::{thread, time::Duration};
+
     use crate::Kfn;
 
     #[test]
     fn file_reading() {
 
-        let mut kfn = Kfn::read("test/input.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
 
         match kfn.parse() {
             Ok(true) => {
@@ -22,7 +24,7 @@ mod tests {
     #[test]
     fn file_writing() {
         
-        let mut kfn = Kfn::read("test/input.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
         
         kfn.parse().unwrap();
         
@@ -32,7 +34,7 @@ mod tests {
     #[test]
     fn ini_test() {
 
-        let mut kfn = Kfn::read("test/input.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
 
         kfn.parse().unwrap();
         
@@ -45,7 +47,7 @@ mod tests {
     #[test]
     fn add_entry_test() {
 
-        let mut kfn = Kfn::read("test/input.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
 
         kfn.parse().unwrap();
 
@@ -58,7 +60,7 @@ mod tests {
     #[test]
     fn remove_entry_test() {
 
-        let mut kfn = Kfn::read("test/input.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
         kfn.parse().unwrap();
 
         //kfn.remove_file("target")
@@ -69,7 +71,7 @@ mod tests {
     #[test]
     fn extract_test() {
 
-        let mut kfn = Kfn::read("test/input.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
 
         kfn.parse().unwrap();
 
@@ -92,7 +94,7 @@ mod tests {
     #[test]
     fn read_anims_test() {
 
-        let mut kfn = Kfn::read("test/input.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
         
         kfn.parse().unwrap();
 
@@ -102,7 +104,7 @@ mod tests {
 
     #[test]
     fn create_test_read_anims() {
-        let mut kfn = Kfn::read("test/input.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
         
         kfn.parse().unwrap();
 
@@ -121,5 +123,25 @@ mod tests {
         kfn.extract(kfn.data.get_entry_by_name("Song.ini").unwrap(), "test/new_Song.ini");
 
         kfn.export("test/new_output_ini.kfn");
+    }
+
+    #[test]
+    fn playback_test() {
+        let mut kfn = Kfn::open("test/input.kfn");
+    
+        kfn.parse().unwrap();
+
+        kfn.data.song.read_eff();
+
+        kfn.get_texts_and_syncs();
+
+        let (sender_caller, receiver_caller) = kfn.play();
+        
+        loop {
+            dbg!(receiver_caller.recv().unwrap());
+        }
+
+        thread::sleep(Duration::from_secs(10));
+
     }
 }

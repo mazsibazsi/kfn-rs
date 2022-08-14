@@ -9,16 +9,31 @@ pub mod kfn_header;
 /// The Song.ini file, containing essential information about the KFN.
 pub mod kfn_ini;
 
+use std::fmt;
+use std::io::Cursor;
 // standard lib
 use std::fs;
 use std::fs::File;
+use std::io::BufReader;
 use std::io::Write;
 use std::path::Path;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
+use std::sync::mpsc::channel;
+use std::thread;
+use std::thread::JoinHandle;
+use std::thread::Thread;
+use std::time::Duration;
+use std::time::Instant;
 
 // helpers
 use crate::helpers::Entry;
 use crate::helpers::file_type::FileType;
 use crate::helpers::file_type::ToBinary;
+
+// rodio
+use rodio::{Decoder, OutputStream, Sink};
+use rodio::source::Source;
 
 // header
 use crate::kfn_header::KfnHeader;
@@ -26,8 +41,12 @@ use crate::kfn_header::KfnHeader;
 // data
 use kfn_data::KfnData;
 
+// derivative
+use derivative::Derivative;
 
-#[derive(Debug)]
+
+#[derive(Derivative)]
+#[derivative(Debug)]
 /// Struct representing a KFN file and it's components.
 pub struct Kfn {
     
@@ -36,12 +55,16 @@ pub struct Kfn {
 
     /// The read head, used in calculating the offset from the directory end.
     read_head: usize,
+
+
+    #[derivative(Debug="ignore")]
+    sink: Sink,
     
     /// The header data of the file.
-    header: KfnHeader,
+    pub header: KfnHeader,
 
     /// The data container for the file.
-    data: KfnData,
+    pub data: KfnData,
 }
 
 #[derive(Debug)]
@@ -54,7 +77,9 @@ impl Kfn {
 
     /// Constructor for creating a Kfn struct from an existing file.
     /// Takes the filename as parameter.
-    pub fn read(filename: &str) -> Self {
+    pub fn open(filename: &str) -> Self {
+        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let audio_sink = Sink::try_new(&stream_handle).unwrap();
         Self { 
             file_data: match fs::read(filename) {
                 Ok(file) => file,
@@ -63,16 +88,20 @@ impl Kfn {
             read_head: usize::default(),
             header: KfnHeader::default(),
             data: KfnData::new(),
+            sink: audio_sink,
          }
     }
 
     /// Constructor for creating a new Kfn struct.
     pub fn new() -> Self {
+        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let audio_sink = Sink::try_new(&stream_handle).unwrap();
         Self { 
             file_data: Vec::new(), 
             read_head: 0, 
             header: KfnHeader::default(), 
-            data: KfnData::new()
+            data: KfnData::new(),
+            sink: audio_sink,
         }
     }
 
@@ -82,7 +111,7 @@ impl Kfn {
         // read file signature
         let signature = match String::from_utf8(self.read_bytes(4)) {
             Ok(s) => s,
-            Err(e) => return Err(KfnParseError::Utf8ConversionError),
+            Err(_) => return Err(KfnParseError::Utf8ConversionError),
         };
         // if file signature is not KFNB, end parsing
         if signature != "KFNB" {
@@ -94,7 +123,7 @@ impl Kfn {
             // get signature
             let signature = match String::from_utf8(self.read_bytes(4)) {
                 Ok(s) => s,
-                Err(e) => return Err(KfnParseError::Utf8ConversionError),
+                Err(_) => return Err(KfnParseError::Utf8ConversionError),
             };
             // get type of the line
             let l_type = self.read_byte();
@@ -202,7 +231,7 @@ impl Kfn {
             let filename_len = self.read_dword();
             let filename = match String::from_utf8(self.read_bytes(filename_len)) {
                 Ok(s) => s,
-                Err(e) => return Err(KfnParseError::Utf8ConversionError),
+                Err(_) => return Err(KfnParseError::Utf8ConversionError),
             };
             let file_type = FileType::from(self.read_dword());
             let len1 = self.read_dword() as usize;
@@ -234,6 +263,8 @@ impl Kfn {
 
         self.data.read_ini();
         
+        self.data.song.read_eff();
+
         Ok(true)
     }
 
@@ -270,6 +301,78 @@ impl Kfn {
         self.data.update_ini();
     }
 
+    /// Get texts with syncs in.
+    pub fn get_texts_and_syncs(&self) -> Vec<(usize, String)> {
+
+        let mut texts_and_syncs: Vec<(usize, String)> = Vec::new();
+
+        for eff in &self.data.song.effs {
+
+
+            if eff.id >= 51 {
+
+                continue;
+            }
+
+            let mut texts: Vec<String> = Vec::new();
+
+            for text in &eff.texts {
+                if text == "" {
+                    //texts.push(text.to_string());
+                }
+                if text.contains("/") || text.contains(" ") {
+
+                    let mut words: Vec<String> = text.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
+                    texts.append(&mut words);
+                }
+            }
+
+            if eff.texts.len() > 0 && eff.syncs.len() > 0 {
+
+                for i in 0..eff.syncs.len()-1 {
+
+                    texts_and_syncs.push((eff.syncs[i], texts[i].clone()))
+                }
+
+            }
+        }
+        texts_and_syncs
+    }
+
+    /// Start playback and returns the thread receiver, that sends
+    pub fn play(&mut self) -> (Sender<String>, Receiver<String>) {
+
+        let (sender_player, receiver_caller) = channel();
+        let (sender_caller, receiver_player) = channel();
+        sender_caller.send(String::from("Ready signal"));
+        // read audio file
+        let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
+
+        let syncs_times = self.get_texts_and_syncs();
+
+        thread::spawn(move || {
+            let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+            let sink = Sink::try_new(&stream_handle).unwrap();
+            // add it to the sink
+            sink.append(rodio::Decoder::new(BufReader::new(cursor)).unwrap());
+            
+            let start = Instant::now();
+            let mut i = 0;
+
+            loop {
+                
+
+                if (syncs_times[i].0 * 10) as u128 == start.elapsed().as_millis() {
+                    sender_player.send(syncs_times[i].1.clone()).unwrap();
+                    sender_player.send(format!("sync {} elapsed {}", syncs_times[i].0 * 10, start.elapsed().as_millis())).unwrap();
+                    i += 1;
+                }
+            }
+            
+        });
+
+        (sender_caller, receiver_caller)
+    }
 
     /// Exporting to .kfn 
     pub fn export(&mut self, filename: &str) {
