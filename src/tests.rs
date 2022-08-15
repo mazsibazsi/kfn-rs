@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use std::{thread, time::Duration};
 
     use crate::Kfn;
 
@@ -135,13 +134,12 @@ mod tests {
 
         kfn.get_texts_and_syncs();
 
-        let (sender_caller, receiver_caller) = kfn.play();
+        let (_sender_caller, receiver_caller) = kfn.play();
         
         loop {
             dbg!(receiver_caller.recv().unwrap());
         }
 
-        thread::sleep(Duration::from_secs(10));
 
     }
 }

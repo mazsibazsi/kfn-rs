@@ -9,7 +9,7 @@ pub mod kfn_header;
 /// The Song.ini file, containing essential information about the KFN.
 pub mod kfn_ini;
 
-use std::fmt;
+
 use std::io::Cursor;
 // standard lib
 use std::fs;
@@ -21,9 +21,6 @@ use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use std::sync::mpsc::channel;
 use std::thread;
-use std::thread::JoinHandle;
-use std::thread::Thread;
-use std::time::Duration;
 use std::time::Instant;
 
 // helpers
@@ -32,8 +29,8 @@ use crate::helpers::file_type::FileType;
 use crate::helpers::file_type::ToBinary;
 
 // rodio
-use rodio::{Decoder, OutputStream, Sink};
-use rodio::source::Source;
+use rodio::{OutputStream, Sink};
+
 
 // header
 use crate::kfn_header::KfnHeader;
@@ -55,10 +52,6 @@ pub struct Kfn {
 
     /// The read head, used in calculating the offset from the directory end.
     read_head: usize,
-
-
-    #[derivative(Debug="ignore")]
-    sink: Sink,
     
     /// The header data of the file.
     pub header: KfnHeader,
@@ -78,8 +71,6 @@ impl Kfn {
     /// Constructor for creating a Kfn struct from an existing file.
     /// Takes the filename as parameter.
     pub fn open(filename: &str) -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let audio_sink = Sink::try_new(&stream_handle).unwrap();
         Self { 
             file_data: match fs::read(filename) {
                 Ok(file) => file,
@@ -88,20 +79,16 @@ impl Kfn {
             read_head: usize::default(),
             header: KfnHeader::default(),
             data: KfnData::new(),
-            sink: audio_sink,
          }
     }
 
     /// Constructor for creating a new Kfn struct.
     pub fn new() -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let audio_sink = Sink::try_new(&stream_handle).unwrap();
         Self { 
             file_data: Vec::new(), 
             read_head: 0, 
             header: KfnHeader::default(), 
             data: KfnData::new(),
-            sink: audio_sink,
         }
     }
 
@@ -343,8 +330,8 @@ impl Kfn {
     pub fn play(&mut self) -> (Sender<String>, Receiver<String>) {
 
         let (sender_player, receiver_caller) = channel();
-        let (sender_caller, receiver_player) = channel();
-        sender_caller.send(String::from("Ready signal"));
+        let (sender_caller, _receiver_player) = channel();
+
         // read audio file
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
 
