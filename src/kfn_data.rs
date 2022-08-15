@@ -171,7 +171,37 @@ impl KfnData {
 
     }
 
-    // Removing an entry from the data.
+    /// Returning an entry by ID, it it exists.
+    pub fn get_entry_by_id(&self, id: usize) -> Option<Entry> {
+        
+        if self.entries.len() > id {
+            Some(self.entries[id].clone())
+        } else {
+            None
+        }
+    }
+
+    /// Returning an entry by file name.
+    pub fn get_entry_by_name(&self, name: &str) -> Option<Entry> {
+
+        let mut id: isize = -1;
+        
+        for i in 0..self.entries.len() {
+
+            if self.entries[i].filename == name {
+                
+                id = i as isize;
+            }
+        }
+
+        if id != -1 {
+            Some(self.entries[id as usize].clone())
+        } else {
+            None
+        }
+    }
+
+    /// Removing an entry from the data.
     pub fn remove_entry_by_id(&mut self, id: usize) {
         
         // Extract the entry and save it

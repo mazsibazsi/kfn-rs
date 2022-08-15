@@ -1,8 +1,12 @@
 pub mod eff;
+pub mod trajectory;
 
 use ini::Ini;
 
-use eff::{AnimEntry, Trajectory, Eff, Effect, Anim, Action, TransType};
+use eff::{AnimEntry, Eff, Effect, Action, TransType, Anim};
+
+use trajectory::Trajectory;
+
 use crate::kfn_header::KfnHeader;
 
 use super::helpers::Entry;
@@ -110,7 +114,7 @@ impl KfnIni {
             let mut syncs: Vec<usize> = Vec::new();
             let mut texts: Vec<String> = Vec::new();
             
-            dbg!(nb_anim);
+            //dbg!(nb_anim);
             // reading the animations, if there are any.
             if nb_anim != 0 {
                 for j in 0..nb_anim {
@@ -173,7 +177,7 @@ impl KfnIni {
                     syncs.append(&mut sync_times);
                 }
             }
-            dbg!(&syncs);
+            //dbg!(&syncs);
 
             if text_count != 0 {
 
@@ -187,10 +191,16 @@ impl KfnIni {
                 }
                 
             }
-            dbg!(&texts);
+            //dbg!(&texts);
             self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory: trajectory});
         } // for i in 1..effect_count {
        
+    }
+
+    /// Returns the name of the source sound file. 
+    pub fn get_source_name(&self) -> String {
+        dbg!(self.ini.get_from(Some("General"), "Source").unwrap()[4..].to_string());
+        self.ini.get_from(Some("General"), "Source").unwrap()[4..].to_string()
     }
 
     /// Method for setting up the effect in the Ini file.
@@ -208,11 +218,15 @@ impl KfnIni {
             // push number to section header, indexing starts at 1!
             eff_section.push_str((eff_n + 1).to_string().as_str());
             
+            let mut section = self.ini.with_section(Some(eff_section.clone()));
+            let eff = &self.effs[eff_n];
             // get essential fields
-            self.ini.with_section(Some(eff_section.clone())).set("ID", self.effs[eff_n].id.to_string());
-            self.ini.with_section(Some(eff_section.clone())).set("NbAnim", self.effs[eff_n].anims.len().to_string());
-            self.ini.with_section(Some(eff_section.clone())).set("TextCount", self.effs[eff_n].texts.len().to_string());
-            
+            section
+                .set("ID", &eff.id.to_string())
+                .set("NbAnim", eff.anims.len().to_string())
+                .set("TextCount", eff.texts.len().to_string())
+                .set("Trajectory", eff.initial_trajectory.to_string());
+
             // iterate through Anim# 
             for anim_n in 0..self.effs[eff_n].anims.len() {
 

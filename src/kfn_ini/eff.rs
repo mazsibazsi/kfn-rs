@@ -1,3 +1,5 @@
+use crate::kfn_ini::Trajectory;
+
 /// Representation of an Eff# headed section, which contains animations, texts, and sync data.
 #[derive(Debug, Clone)]
 pub struct Eff {
@@ -46,7 +48,7 @@ pub enum Action {
     ChgFloatOffsetX(f64),
     ChgFloatOffsetY(f64),
     ChgFloatDepth(f64),
-    ChgTrajectory(String),
+    ChgTrajectory(Trajectory),
 }
 
 impl From<&str> for Action {
@@ -68,7 +70,7 @@ impl From<&str> for Action {
             "ChgFloatOffsetX"   => Action::ChgFloatOffsetX(value.parse::<f64>().unwrap()),
             "ChgFloatOffsetY"   => Action::ChgFloatOffsetY(value.parse::<f64>().unwrap()),
             "ChgFloatDepth"     => Action::ChgFloatDepth(value.parse::<f64>().unwrap()),
-            "ChgTrajectory"     => Action::ChgTrajectory(value),
+            "ChgTrajectory"     => Action::ChgTrajectory(Trajectory::from(value.as_str())),
             &_                  => Action::None,
         }
     }
@@ -150,32 +152,4 @@ impl From<&str> for TransType {
     }
 }
 
-/// Representation of the trajectories the text or image can take.
-#[derive(Debug, Clone)]
-pub enum Trajectory {
-    PlainBottomToTop(u32, u32, u32, u32),
-}
 
-impl std::default::Default for Trajectory {
-    fn default() -> Self {
-        Trajectory::PlainBottomToTop(1, 1, 1, 1)
-    }
-}
-
-impl From<&str> for Trajectory {
-
-    fn from(s: &str) -> Self {
-        let key = s.split('*').collect::<Vec<&str>>()[0];
-        let value = s.split('*').collect::<Vec<&str>>();
-        dbg!(&value);
-        match key {
-            "PlainBottomToTop" => Trajectory::PlainBottomToTop(
-                                        value[1].parse().unwrap(),
-                                        value[2].parse().unwrap(),
-                                        value[3].parse().unwrap(),
-                                        value[4].parse().unwrap()
-                                    ),
-            &_ => Trajectory::PlainBottomToTop(1, 1, 1, 1),
-        }
-    }
-}

@@ -1,6 +1,5 @@
 mod tests;
 
-
 /// Helpers, containing methods for handling the data and filetypes.
 pub mod helpers;
 /// Module for handling the main data of the KFN file, like songtexts and sync times.
@@ -11,27 +10,26 @@ pub mod kfn_header;
 pub mod kfn_ini;
 
 
+use std::io::Cursor;
 // standard lib
 use std::fs;
 use std::fs::File;
+use std::io::BufReader;
 use std::io::Write;
 use std::path::Path;
-use std::string::FromUtf8Error;
-
-
-// regex lib
-use regex::Regex;
-
-
-// hex debugger lib
-use dbg_hex::dbg_hex;
-
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
+use std::sync::mpsc::channel;
+use std::thread;
+use std::time::Instant;
 
 // helpers
 use crate::helpers::Entry;
-
 use crate::helpers::file_type::FileType;
 use crate::helpers::file_type::ToBinary;
+
+// rodio
+use rodio::{OutputStream, Sink};
 
 
 // header
@@ -40,8 +38,12 @@ use crate::kfn_header::KfnHeader;
 // data
 use kfn_data::KfnData;
 
+// derivative
+use derivative::Derivative;
 
-#[derive(Debug)]
+
+#[derive(Derivative)]
+#[derivative(Debug)]
 /// Struct representing a KFN file and it's components.
 pub struct Kfn {
     
@@ -53,17 +55,22 @@ pub struct Kfn {
     
     /// The header data of the file.
     pub header: KfnHeader,
+
     /// The data container for the file.
     pub data: KfnData,
 }
 
-
+#[derive(Debug)]
+pub enum KfnParseError {
+    InvalidHeaderSignature(String),
+    Utf8ConversionError,
+}
 
 impl Kfn {
 
     /// Constructor for creating a Kfn struct from an existing file.
     /// Takes the filename as parameter.
-    pub fn read(filename: &str) -> Self {
+    pub fn open(filename: &str) -> Self {
         Self { 
             file_data: match fs::read(filename) {
                 Ok(file) => file,
@@ -81,23 +88,30 @@ impl Kfn {
             file_data: Vec::new(), 
             read_head: 0, 
             header: KfnHeader::default(), 
-            data: KfnData::new()
+            data: KfnData::new(),
         }
     }
 
+
     /// Method for parsing the file itself.
-    pub fn dump(&mut self) -> Result<bool, FromUtf8Error> {
+    pub fn parse(&mut self) -> Result<bool, KfnParseError> {
         // read file signature
-        let signature = String::from_utf8(self.read_bytes(4))?;
+        let signature = match String::from_utf8(self.read_bytes(4)) {
+            Ok(s) => s,
+            Err(_) => return Err(KfnParseError::Utf8ConversionError),
+        };
         // if file signature is not KFNB, end parsing
         if signature != "KFNB" {
-            panic!("Bad signature error");
+            return Err(KfnParseError::InvalidHeaderSignature(signature));
         }
         
         // reading the header
         loop {
             // get signature
-            let signature = String::from_utf8(self.read_bytes(4))?;
+            let signature = match String::from_utf8(self.read_bytes(4)) {
+                Ok(s) => s,
+                Err(_) => return Err(KfnParseError::Utf8ConversionError),
+            };
             // get type of the line
             let l_type = self.read_byte();
             let len_or_value = self.read_dword();
@@ -105,7 +119,9 @@ impl Kfn {
             // match for line type > if type 1, it's a value, if type 2 -> it contains header information
             match l_type {
                 1 => {
+
                     match signature.as_str() {
+
                         "DIFM" => {
                             self.header.diff_men = len_or_value;
                         },
@@ -135,7 +151,6 @@ impl Kfn {
                         },
                         _ => println!("{}, type 1, value {:x}", signature, len_or_value),
                     }
-                    //println!("{}, type 1, value {:x}", signature, len_or_value);
                 },
                 2 => {
                     // get data into buffer
@@ -143,6 +158,7 @@ impl Kfn {
                     let buffer_str = String::from_utf8(buffer.clone()).unwrap_or("Unknown".to_string());
                     // match header info and insert into header
                     match signature.as_str() {
+
                         "FLID" => {
                             self.header.flid = buffer_str;
                         },
@@ -181,8 +197,7 @@ impl Kfn {
                         },
                         _ => ()
                     }
-                    //
-                    //println!("{}, type 2, length {:#?}, hex: {}, string: {:?}", signature, len_or_value, dump_hex(&buffer), String::from_utf8(buffer));
+                   
                 },
                 _ => {
 
@@ -193,9 +208,7 @@ impl Kfn {
                 break;
             }
         }
-        //println!("header end: {}", self.read_head);
-        
-        dbg_hex!(&self.header);
+
         // reading the directory
         let num_files = self.read_dword();
         println!("# of files: {}", num_files);
@@ -205,7 +218,7 @@ impl Kfn {
             let filename_len = self.read_dword();
             let filename = match String::from_utf8(self.read_bytes(filename_len)) {
                 Ok(s) => s,
-                Err(e) => return Err(e),
+                Err(_) => return Err(KfnParseError::Utf8ConversionError),
             };
             let file_type = FileType::from(self.read_dword());
             let len1 = self.read_dword() as usize;
@@ -234,61 +247,29 @@ impl Kfn {
                             ]
                         );
         }
-        
-        //println!("Directory ends at offset {}", self.read_head);
 
         self.data.read_ini();
         
+        self.data.song.read_eff();
+
         Ok(true)
     }
 
-    /// Extracting songtexts into a vector.
-    pub fn get_syncs(&mut self) -> Vec<usize> {
-
-        let mut syncs: Vec<usize> = Vec::new();
-
-        let contents_raw = fs::read_to_string(&self.data.path_song_ini).unwrap();
-        let contents: Vec<&str> = contents_raw.split("\n").collect();
-        for line in contents {
-            let re = Regex::new(r"^Sync\d+=(.*)$").unwrap();
-            
-            if re.is_match(line) {
-                let syncline_str = re.captures(line).unwrap().get(1).map_or("", |m| m.as_str());
-                let mut syncline_split: Vec<usize> = syncline_str.split(",").map(|n| usize::from_str_radix(n, 10).unwrap()).collect();
-                syncs.append(&mut syncline_split);
-            }
-        }
-        syncs
-    }
-
-    /// Extracting sync points into a vector.
-    pub fn get_text(&mut self) -> Vec<String> {
-
-        let mut text: Vec<String> = Vec::new();
-
-        let contents_raw = fs::read_to_string(&self.data.path_song_ini).unwrap();
-        let contents: Vec<&str> = contents_raw.split("\n").collect();
-        for line in contents {
-            let re = Regex::new(r"^Text\d+=(.*)$").unwrap();
-            if re.is_match(line) {
-                let textline_str = re.captures(line).unwrap().get(1).map_or("", |m| m.as_str());
-                let mut textline_split: Vec<String> = textline_str.split(&['/', ' ', '\n']).map(|s| s.to_string()).collect();
-                if textline_str != "" {
-                    text.append(&mut textline_split);
-                }
-            }
-        }
-        text
-    }
-
-    /// ----------------------
-    /// KFN MANIPULATION BLOCK
-    /// ----------------------
+    // ----------------------
+    // KFN MANIPULATION BLOCK
+    // ----------------------
      
     /// Add file
     pub fn add_file(&mut self, source: &str) {
 
         self.data.add_entry_from_file(source);
+        self.update();
+    }
+
+    /// Remove file
+    pub fn remove_file(&mut self, target: &str) {
+
+        self.data.remove_entry_by_name(target);
         self.update();
     }
 
@@ -300,62 +281,84 @@ impl Kfn {
         self.update();
     }
 
-    /// Remove file
-    pub fn remove_file(&mut self, target: &str) {
-
-        self.data.remove_entry_by_name(target);
-        self.update();
-    }
-
-    /// Update the ini file
-    fn update(&mut self) {
+    /// Update the ini file from header
+    pub fn update(&mut self) {
 
         self.data.song.populate_from_header(self.header.clone());
         self.data.update_ini();
     }
 
+    /// Get texts with syncs in.
+    pub fn get_texts_and_syncs(&self) -> Vec<(usize, String)> {
 
-    /// Helper IO function for reading a byte
-    fn read_byte(&mut self) -> u8 {
-        
-        let result = self.file_data[self.read_head as usize];
-        
-        self.read_head += 1;
-        
-        (result & 0xFF).into()
-    }
+        let mut texts_and_syncs: Vec<(usize, String)> = Vec::new();
 
-    /// Helper IO function for reading a word
-    fn _read_word(&mut self) -> u16 {
-        
-        let b1 = self.read_byte() as u16;
-        let b2 = self.read_byte() as u16;
+        for eff in &self.data.song.effs {
 
-        b2 << 8 | b1
-    }
 
-    /// Helper IO function for reading a dword
-    fn read_dword(&mut self) -> u32 {
-        
-        let b1 = self.read_byte() as u32;
-        let b2 = self.read_byte() as u32;
-        let b3 = self.read_byte() as u32;
-        let b4 = self.read_byte() as u32;
+            if eff.id >= 51 {
 
-        b4 << 24 | b3 << 16 | b2 << 8 | b1
-    }
+                continue;
+            }
 
-    /// Helper IO function for reading a specified amount fo bytes
-    fn read_bytes(&mut self, length: u32) -> Vec<u8> {
-        
-        let mut array: Vec<u8> = Vec::with_capacity(length as usize);
-        
-        for _ in 0..length {
-        
-            array.push(self.read_byte());
+            let mut texts: Vec<String> = Vec::new();
+
+            for text in &eff.texts {
+                if text == "" {
+                    //texts.push(text.to_string());
+                }
+                if text.contains("/") || text.contains(" ") {
+
+                    let mut words: Vec<String> = text.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
+                    texts.append(&mut words);
+                }
+            }
+
+            if eff.texts.len() > 0 && eff.syncs.len() > 0 {
+
+                for i in 0..eff.syncs.len()-1 {
+
+                    texts_and_syncs.push((eff.syncs[i], texts[i].clone()))
+                }
+
+            }
         }
-        
-        array
+        texts_and_syncs
+    }
+
+    /// Start playback and returns the thread receiver, that sends
+    pub fn play(&mut self) -> (Sender<String>, Receiver<String>) {
+
+        let (sender_player, receiver_caller) = channel();
+        let (sender_caller, _receiver_player) = channel();
+
+        // read audio file
+        let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
+
+        let syncs_times = self.get_texts_and_syncs();
+
+        thread::spawn(move || {
+            let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+            let sink = Sink::try_new(&stream_handle).unwrap();
+            // add it to the sink
+            sink.append(rodio::Decoder::new(BufReader::new(cursor)).unwrap());
+            
+            let start = Instant::now();
+            let mut i = 0;
+
+            loop {
+                
+
+                if (syncs_times[i].0 * 10) as u128 == start.elapsed().as_millis() {
+                    sender_player.send(syncs_times[i].1.clone()).unwrap();
+                    sender_player.send(format!("sync {} elapsed {}", syncs_times[i].0 * 10, start.elapsed().as_millis())).unwrap();
+                    i += 1;
+                }
+            }
+            
+        });
+
+        (sender_caller, receiver_caller)
     }
 
     /// Exporting to .kfn 
@@ -382,12 +385,12 @@ impl Kfn {
             filename.push_str(&self.data.entries[i].clone().filename.to_string());
         
             // send it to extraction
-            self.extract(self.data.entries[i].clone(), filename);
+            self.extract(self.data.entries[i].clone(), &filename);
         }
     }
 
     /// Extracting a single file from the entry to a deisgnated output.
-    fn extract(&mut self, entry: Entry, output_filename: String) {
+    pub fn extract(&mut self, entry: Entry, output_filename: &str) {
         
         // set the path and prefix
         let path = Path::new(&output_filename);
@@ -398,9 +401,49 @@ impl Kfn {
         
         let mut output = File::create(path).unwrap();
 
-        let buf: Vec<u8> = Vec::from(&self.file_data[entry.offset..entry.offset+entry.len1]);
+        let buf: Vec<u8> = Vec::from(entry.file_bin);
         
         output.write_all(&buf).unwrap();
     }
     
+
+
+    // -----------------------
+    // BINARY HELPER FUNCTIONS
+    //------------------------
+
+    /// Helper IO function for reading a byte
+    fn read_byte(&mut self) -> u8 {
+        
+        let result = self.file_data[self.read_head as usize];
+        
+        self.read_head += 1;
+        
+        (result & 0xFF).into()
+    }
+
+    /// Helper IO function for reading a dword
+    fn read_dword(&mut self) -> u32 {
+        
+        let b1 = self.read_byte() as u32;
+        let b2 = self.read_byte() as u32;
+        let b3 = self.read_byte() as u32;
+        let b4 = self.read_byte() as u32;
+
+        b4 << 24 | b3 << 16 | b2 << 8 | b1
+    }
+
+    /// Helper IO function for reading a specified amount fo bytes
+    fn read_bytes(&mut self, length: u32) -> Vec<u8> {
+        
+        let mut array: Vec<u8> = Vec::with_capacity(length as usize);
+        
+        for _ in 0..length {
+        
+            array.push(self.read_byte());
+        }
+        
+        array
+    }
+
 }
