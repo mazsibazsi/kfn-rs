@@ -103,6 +103,7 @@ mod tests {
 
     #[test]
     fn create_test_read_anims() {
+
         let mut kfn = Kfn::open("test/input.kfn");
         
         kfn.parse().unwrap();
@@ -111,10 +112,9 @@ mod tests {
         
         kfn.data.song.ini.clear();
 
-        kfn.data.song.populate_empty();
+        kfn.data.song.populate_from_header(&kfn.header);
         
-        kfn.add_file("test/insert.mp3");
-        kfn.set_source("insert.mp3");
+        //kfn.add_file("test/insert.mp3");
 
         kfn.data.song.set_eff();
         kfn.data.update_ini();
@@ -126,6 +126,7 @@ mod tests {
 
     #[test]
     fn playback_test() {
+
         let mut kfn = Kfn::open("test/input.kfn");
     
         kfn.parse().unwrap();
@@ -139,7 +140,5 @@ mod tests {
         loop {
             dbg!(receiver_caller.recv().unwrap());
         }
-
-
     }
 }

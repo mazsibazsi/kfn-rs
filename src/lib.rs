@@ -284,7 +284,7 @@ impl Kfn {
     /// Update the ini file from header
     pub fn update(&mut self) {
 
-        self.data.song.populate_from_header(self.header.clone());
+        self.data.song.populate_from_header(&self.header);
         self.data.update_ini();
     }
 
@@ -292,7 +292,7 @@ impl Kfn {
     pub fn get_texts_and_syncs(&self) -> Vec<(usize, String)> {
 
         let mut texts_and_syncs: Vec<(usize, String)> = Vec::new();
-
+         
         for eff in &self.data.song.effs {
 
 
@@ -336,7 +336,7 @@ impl Kfn {
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
 
         let syncs_times = self.get_texts_and_syncs();
-
+        dbg!(&syncs_times);
         thread::spawn(move || {
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let sink = Sink::try_new(&stream_handle).unwrap();

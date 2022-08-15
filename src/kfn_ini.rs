@@ -57,32 +57,36 @@ impl KfnIni {
     }
 
     /// Populating the General section with empty data.
-    pub fn populate_from_header(&mut self, header: KfnHeader) {
+    pub fn populate_from_header(&mut self, header: &KfnHeader) {
 
-        let mut source = String::from("1,I,");
+        let mut source = String::new();
+        if &header.source_file[0..=3] != "1,I," {
+            source.push_str("1,I,");
+        }
         source.push_str(&header.source_file);
 
+        
 
         self.ini.with_section(Some("General"))
-            .set("Title", header.title)
-            .set("Artist", header.artist)
-            .set("Album", header.album)
-            .set("Composer", header.composer)
-            .set("Year", header.year)
-            .set("Track", header.trak)
-            .set("GenreID", header.genre.to_string())
-            .set("Copyright", header.copyright)
+            .set("Title", &header.title)
+            .set("Artist", &header.artist)
+            .set("Album", &header.album)
+            .set("Composer", &header.composer)
+            .set("Year", &header.year)
+            .set("Track", &header.trak)
+            .set("GenreID", &header.genre.to_string())
+            .set("Copyright", &header.copyright)
             .set("Comment", "")
             .set("Source", source)
             .set("EffectCount", "")
-            .set("LanguageID", header.language)
+            .set("LanguageID", &header.language)
             .set("DiffMen", header.diff_men.to_string())
             .set("DiffWomen", header.diff_women.to_string())
             .set("KFNType", header.kfn_type.to_string())
             .set("Properties", "")
             .set("KaraokeVersion", "")
             .set("VocalGuide", "")
-            .set("KaraFunization", header.karafunizer);
+            .set("KaraFunization", &header.karafunizer);
 
     }
 
@@ -92,7 +96,7 @@ impl KfnIni {
         // get the number of effects to parse
         let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap().to_string().parse::<usize>().unwrap();
 
-        for i in 1..effect_count {
+        for i in 1..=effect_count {
             
             let mut eff = String::from("Eff");
 
@@ -114,7 +118,6 @@ impl KfnIni {
             let mut syncs: Vec<usize> = Vec::new();
             let mut texts: Vec<String> = Vec::new();
             
-            //dbg!(nb_anim);
             // reading the animations, if there are any.
             if nb_anim != 0 {
                 for j in 0..nb_anim {
