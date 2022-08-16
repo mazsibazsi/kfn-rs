@@ -60,9 +60,12 @@ impl KfnIni {
     pub fn populate_from_header(&mut self, header: &KfnHeader) {
 
         let mut source = String::new();
-        if &header.source_file[0..=3] != "1,I," {
-            source.push_str("1,I,");
+        if header.source_file.len() > 4 {
+            if &header.source_file[0..=3] != "1,I," {
+                source.push_str("1,I,");
+            }
         }
+        
         source.push_str(&header.source_file);
 
         
@@ -110,9 +113,23 @@ impl KfnIni {
             // number of animations
             let nb_anim = section.get("NbAnim").unwrap().to_string().parse::<usize>().unwrap();
             let text_count = section.get("TextCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
-            let trajectory = Trajectory::from(
+            let initial_trajectory = Trajectory::from(
                 section.get("Trajectory").unwrap_or_default()
             );
+            let mut initial_lib_image = match section.get("LibImage") {
+                Some(s) => s.to_string(),
+                None => "".to_string(),
+            };
+            let initial_font: (String, u32) = match section.get("Font") {
+                Some(s) => {
+                    let res: Vec<&str> = s.split("*").collect();
+                    (res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap())
+                },
+                None => {
+                    ("".to_string(), 12)
+                }
+            };
+
             // list of animations in Anim# form
             let mut anims: Vec<Anim> = Vec::new();
             let mut syncs: Vec<usize> = Vec::new();
@@ -194,8 +211,10 @@ impl KfnIni {
                 }
                 
             }
+            
+            
             //dbg!(&texts);
-            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory: trajectory});
+            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory, initial_lib_image, initial_font });
         } // for i in 1..effect_count {
        
     }

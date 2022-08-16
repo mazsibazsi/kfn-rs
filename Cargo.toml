@@ -1,6 +1,6 @@
 [package]
 name = "kfn-rs"
-version = "0.2.0-alpha"
+version = "0.2.1-alpha"
 authors = ["Balázs Máhli"]
 edition = "2021"
 license = "GPL-3.0-or-later"
@@ -19,3 +19,6 @@ dbg_hex = "0.1.1"
 rust-ini = "0.18.0"
 derivative = "2.2.0"
 rodio = "0.15.0"
+speedy2d = "1.7.0"
+crossbeam = "0.8.2"
+image = "0.24.3"

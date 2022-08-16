@@ -9,6 +9,10 @@ pub struct Eff {
     pub id: usize,
     /// Collection of the animations.
     pub anims: Vec<Anim>,
+    /// initial background, if there is any = LibImage
+    pub initial_lib_image: String,
+    /// Initial font setting
+    pub initial_font: (String, u32),
     /// Collection of the sync timestamps in ms.
     pub syncs: Vec<usize>,
     /// Collection of the songtext lines. Separators: '/' ' '

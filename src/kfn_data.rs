@@ -13,7 +13,7 @@ use super::kfn_ini::KfnIni;
 
 
 /// KfnHeader depicting the header contents of a KFN file
-#[derive(Derivative)]
+#[derive(Derivative, Clone, Default)]
 #[derivative(Debug)]
 pub struct KfnData {
     /// The location of the Songs.ini file.
@@ -217,15 +217,18 @@ impl KfnData {
     /// Removing an entry by name from the data. If it doesn't exist, it wont delete.
     pub fn remove_entry_by_name(&mut self, name: &str) {
         
+        // Default to id -1
         let mut id: isize = -1;
         
+        // If we have entries...
         for i in 0..self.entries.len() {
-
+            // ...look for the filename matching...
             if self.entries[i].filename == name {
-                
+                // and return the id.
                 id = i as isize;
             }
         }
+        // If the id stayed -1, return without doing anything.
         if id == -1 {
             return;
         }
@@ -233,7 +236,7 @@ impl KfnData {
         // Extract the entry and save it to have it's length later.
         let removed_entry = self.entries.remove(id as usize);
 
-        // iterate over the entries...
+        // Iterate over the entries...
         for i in id as usize+1..self.entries.len()-1 {
             // ...and remove the removed entry's length from their offset.
             self.entries[i as usize].offset -= removed_entry.len1;

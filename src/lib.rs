@@ -8,7 +8,8 @@ pub mod kfn_data;
 pub mod kfn_header;
 /// The Song.ini file, containing essential information about the KFN.
 pub mod kfn_ini;
-
+/// Window for displaying the KFN file.
+pub mod kfn_player;
 
 use std::io::Cursor;
 // standard lib
@@ -17,9 +18,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::Write;
 use std::path::Path;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::Sender;
-use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Instant;
 
@@ -30,6 +28,7 @@ use crate::helpers::file_type::ToBinary;
 
 // rodio
 use rodio::{OutputStream, Sink};
+use speedy2d::dimen::Vector2;
 
 
 // header
@@ -37,6 +36,15 @@ use crate::kfn_header::KfnHeader;
 
 // data
 use kfn_data::KfnData;
+
+// player
+use kfn_player::KfnPlayer;
+
+// speedy2d helpers
+use speedy2d::Window;
+
+// crossbeam
+use crossbeam::channel::{Sender, Receiver, unbounded};
 
 // derivative
 use derivative::Derivative;
@@ -58,6 +66,7 @@ pub struct Kfn {
 
     /// The data container for the file.
     pub data: KfnData,
+
 }
 
 #[derive(Debug)]
@@ -79,6 +88,7 @@ impl Kfn {
             read_head: usize::default(),
             header: KfnHeader::default(),
             data: KfnData::new(),
+
          }
     }
 
@@ -89,6 +99,7 @@ impl Kfn {
             read_head: 0, 
             header: KfnHeader::default(), 
             data: KfnData::new(),
+
         }
     }
 
@@ -314,7 +325,8 @@ impl Kfn {
                 }
             }
 
-            if eff.texts.len() > 0 && eff.syncs.len() > 0 {
+
+            if texts.len() > 0 && eff.syncs.len() > 0 {
 
                 for i in 0..eff.syncs.len()-1 {
 
@@ -329,14 +341,15 @@ impl Kfn {
     /// Start playback and returns the thread receiver, that sends
     pub fn play(&mut self) -> (Sender<String>, Receiver<String>) {
 
-        let (sender_player, receiver_caller) = channel();
-        let (sender_caller, _receiver_player) = channel();
-
+        // initialize channels
+        let (sender_player, receiver_caller): (Sender<String>, Receiver<String>) = unbounded();
+        let (sender_caller, receiver_player): (Sender<String>, Receiver<String>) = unbounded();
         // read audio file
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
-
+        // get sync times
         let syncs_times = self.get_texts_and_syncs();
-        dbg!(&syncs_times);
+
+        
         thread::spawn(move || {
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let sink = Sink::try_new(&stream_handle).unwrap();
@@ -347,18 +360,46 @@ impl Kfn {
             let mut i = 0;
 
             loop {
-                
+
+                match receiver_player.try_recv() {
+                    Ok(s) => {
+                        match s.as_str() {
+                            "END" => break,
+                            &_ => (),
+                        }
+                    },
+                    Err(_) => (),
+                }
 
                 if (syncs_times[i].0 * 10) as u128 == start.elapsed().as_millis() {
                     sender_player.send(syncs_times[i].1.clone()).unwrap();
-                    sender_player.send(format!("sync {} elapsed {}", syncs_times[i].0 * 10, start.elapsed().as_millis())).unwrap();
+                    //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].0 * 10, start.elapsed().as_millis())).unwrap();
                     i += 1;
                 }
+                
+
             }
             
         });
 
         (sender_caller, receiver_caller)
+    }
+
+    /// Start playback in a separate window.
+    pub fn play_kfn(&mut self) {
+
+        // falling back to X11/Xorg, for server side decoration
+        std::env::set_var("WAYLAND_DISPLAY", "");
+
+
+
+        let window = Window::new_centered("Title", (800, 600)).unwrap();
+        
+        let (sender, receiver) = self.play();
+        window.run_loop(
+            KfnPlayer::new(self.data.clone(), (800, 600), receiver)
+        );
+
     }
 
     /// Exporting to .kfn 
