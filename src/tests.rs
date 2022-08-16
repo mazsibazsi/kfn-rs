@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn playback_test() {
 
-        let mut kfn = Kfn::open("test/input3.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
     
         kfn.parse().unwrap();
 
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn playback_video_test() {
-        let mut kfn = Kfn::open("test/input3.kfn");
+        let mut kfn = Kfn::open("test/input.kfn");
     
         kfn.parse().unwrap();
 

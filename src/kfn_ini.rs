@@ -116,7 +116,7 @@ impl KfnIni {
             let initial_trajectory = Trajectory::from(
                 section.get("Trajectory").unwrap_or_default()
             );
-            let mut initial_lib_image = match section.get("LibImage") {
+            let initial_lib_image = match section.get("LibImage") {
                 Some(s) => s.to_string(),
                 None => "".to_string(),
             };
@@ -126,7 +126,7 @@ impl KfnIni {
                     (res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap())
                 },
                 None => {
-                    ("".to_string(), 12)
+                    ("Arial Black".to_string(), 12)
                 }
             };
 

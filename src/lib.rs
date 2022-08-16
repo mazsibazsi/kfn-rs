@@ -10,6 +10,8 @@ pub mod kfn_header;
 pub mod kfn_ini;
 /// Window for displaying the KFN file.
 pub mod kfn_player;
+/// Default fonts module
+pub mod fonts;
 
 use std::io::Cursor;
 // standard lib
@@ -300,9 +302,10 @@ impl Kfn {
     }
 
     /// Get texts with syncs in.
-    pub fn get_texts_and_syncs(&self) -> Vec<(usize, String)> {
+    pub fn get_texts_and_syncs(&self) -> Vec<(String, (usize, String))> {
 
-        let mut texts_and_syncs: Vec<(usize, String)> = Vec::new();
+
+        let mut texts_and_syncs: Vec<(String, (usize, String))> = Vec::new();
          
         for eff in &self.data.song.effs {
 
@@ -313,24 +316,36 @@ impl Kfn {
             }
 
             let mut texts: Vec<String> = Vec::new();
-
+            let mut display: Vec<String> = Vec::new();
             for text in &eff.texts {
+
                 if text == "" {
                     //texts.push(text.to_string());
                 }
                 if text.contains("/") || text.contains(" ") {
 
-                    let mut words: Vec<String> = text.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
-                    texts.append(&mut words);
+                    
+                    let mut line: Vec<String> = text.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
+                    
+
+
+                    let displayed = text.split(&['/'][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>().join("");
+                    for _ in 0..line.len() {
+                        display.push(displayed.clone());
+                    }
+                    
+                    texts.append(&mut line);
+                
                 }
             }
 
+            dbg!(&display);
 
             if texts.len() > 0 && eff.syncs.len() > 0 {
 
                 for i in 0..eff.syncs.len()-1 {
 
-                    texts_and_syncs.push((eff.syncs[i], texts[i].clone()))
+                    texts_and_syncs.push((display[i].clone(), (eff.syncs[i], texts[i].clone())))
                 }
 
             }
@@ -349,7 +364,7 @@ impl Kfn {
         // get sync times
         let syncs_times = self.get_texts_and_syncs();
 
-        
+        dbg!(&syncs_times);
         thread::spawn(move || {
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let sink = Sink::try_new(&stream_handle).unwrap();
@@ -371,9 +386,9 @@ impl Kfn {
                     Err(_) => (),
                 }
 
-                if (syncs_times[i].0 * 10) as u128 == start.elapsed().as_millis() {
-                    sender_player.send(syncs_times[i].1.clone()).unwrap();
-                    //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].0 * 10, start.elapsed().as_millis())).unwrap();
+                if (syncs_times[i].1.0 * 10) as u128 == start.elapsed().as_millis() {
+                    sender_player.send(syncs_times[i].0.clone()).unwrap();
+                    //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].1.0 * 10, start.elapsed().as_millis())).unwrap();
                     i += 1;
                 }
                 
