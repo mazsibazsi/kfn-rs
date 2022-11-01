@@ -414,7 +414,7 @@ impl Kfn {
                     Err(_) => (),
                 }
                 //dbg!(events[i].time);
-                if (events[i].time *10) as u128 <= start.elapsed().as_millis() {
+                if (events[i].time *10) as u128 == start.elapsed().as_millis() {
                     sender_player.send(events[i].time).unwrap();
                     println!("{} sent", events[i].time);
                     //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].1.0 * 10, start.elapsed().as_millis())).unwrap();

@@ -1,5 +1,7 @@
 
 
+
+use std::thread;
 use std::time::Instant;
 
 use async_trait::async_trait;
@@ -68,19 +70,19 @@ impl KfnPlayer {
                     (self.curr_window_size.x, self.curr_window_size.y),
                     &raw_image).unwrap();
                     graphics.draw_image(Vector2::new(0.0, 0.0), &image);
+                    println!("Background changed.");
                 }
             },
             None => {
                 println!("Image entry {} not found.", entry_name);
             },
         }
-        
     }
 
     
 }
 
-#[async_trait]
+
 impl WindowHandler for KfnPlayer {
 
     fn on_start(&mut self, helper: &mut WindowHelper<()>, info: WindowStartupInfo) {
@@ -88,38 +90,42 @@ impl WindowHandler for KfnPlayer {
     }
 
     fn on_draw(&mut self, helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
-
+        let mut screen_changed = false;
         // clear screen
         //graphics.clear_screen(Color::BLACK); // need to implement default bg color
-        // window only resizable through other means
         //self.set_background("kaibutsu_05.jpg", graphics);
-        match self.receiver.try_recv() {
-            Ok(event_time) => {
-                println!("{} received", event_time);
-                if let Some(next_event) = self.event_buffer.iter().position(|event| event.time  == event_time) {
-                    match &self.event_buffer[next_event].event_type {
-                        EventType::Animation(ae) => {
-                            //dbg!(&self.start_time.elapsed().as_millis());
-                            match &ae.action {
-                                crate::kfn_ini::eff::Action::ChgBgImg(entryname) => {
-                                    dbg!(&entryname);
-                                    println!("Background changed.");
-                                    self.set_background(&entryname, graphics);
-                                    helper.request_redraw()
-                                },
-                                _ => print!("|")
+        loop {
+
+       
+            match self.receiver.try_recv() {
+                Ok(event_time) => {
+                    println!("{} received", event_time);
+                    if let Some(next_event) = self.event_buffer.iter().position(|event| event.time  == event_time) {
+                        match &self.event_buffer[next_event].event_type {
+                            EventType::Animation(ae) => {
+                                //dbg!(&self.start_time.elapsed().as_millis());
+                                match &ae.action {
+                                    crate::kfn_ini::eff::Action::ChgBgImg(entryname) => {
+                                        dbg!(&entryname);
+                                        
+                                        self.set_background(&entryname, graphics);
+                                        screen_changed = true;
+                                        break;
+                                    },
+                                    _ => println!("Unimplemented AnimEntry Action! Skipping...")
+                                }
+                            },
+                            EventType::Text(t) => {
+                                print!("_");
                             }
-                        },
-                        EventType::Text(t) => {
-                            print!("_");
                         }
                     }
-                }
-            },
-            _ => {
-               
-            },
-        };
+                },
+                Err(_e) => {
+                
+                },
+            };
+        }
         
         /* if let Some(next_event) = self.event_buffer.first() {
             if next_event.time == self.receiver.try_recv().unwrap_or(0) {
@@ -145,7 +151,7 @@ impl WindowHandler for KfnPlayer {
         
 
         
-        helper.request_redraw()
+        if screen_changed {helper.request_redraw()};
     }
     
 }
