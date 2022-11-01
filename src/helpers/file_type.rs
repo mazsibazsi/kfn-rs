@@ -1,5 +1,5 @@
 /// File types, that indicate what kind of files can occur in a KFN file.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FileType {
     SongIni,
     Music,

@@ -1,5 +1,6 @@
 
 pub mod file_type;
+pub mod event;
 
 use std::{fmt::Write};
 use file_type::FileType;
@@ -28,7 +29,7 @@ pub fn u32_to_u8_arr(x:u32) -> Vec<u8> {
 }
 
 /// Representing a file entry in the KFN file.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Entry {
     pub file_type: FileType,
     pub filename: String,

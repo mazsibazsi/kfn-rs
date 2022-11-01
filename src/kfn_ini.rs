@@ -9,13 +9,12 @@ use trajectory::Trajectory;
 
 use crate::kfn_header::KfnHeader;
 
-use super::helpers::Entry;
+use crate::helpers::Entry;
 
 
 /// Wrapper for the Song.ini file.
 #[derive(Default, Clone)]
 pub struct KfnIni {
-    
     /// The Song.ini file itself, represented using the ini-rust library.
     /// To learn more: https://github.com/zonyitoo/rust-ini
     pub ini: Ini,
@@ -26,7 +25,6 @@ pub struct KfnIni {
 impl KfnIni {
     /// Creating a new ini file.
     pub fn new() -> Self {
-
         Self { ini: Ini::new(), effs: Vec::new(), }
     }
 
@@ -94,17 +92,21 @@ impl KfnIni {
     }
 
     /// Reading the Eff# headed sections
-    pub fn read_eff(&mut self) {
+    pub fn load_eff(&mut self) {
         
         // get the number of effects to parse
         let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap().to_string().parse::<usize>().unwrap();
 
+        // based on the number of effects...
         for i in 1..=effect_count {
             
+            // create a string "Eff"
             let mut eff = String::from("Eff");
 
+            // add the number, which effect we're working with
             eff.push_str(&i.to_string());
             
+            // select the Eff# section based on the string we previously constructed
             let section = self.ini.section(Some(eff)).unwrap();
             
             // TODO implement the rest of the properties
@@ -112,7 +114,9 @@ impl KfnIni {
 
             // number of animations
             let nb_anim = section.get("NbAnim").unwrap().to_string().parse::<usize>().unwrap();
+            // number of texts
             let text_count = section.get("TextCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
+            // starting trajectory
             let initial_trajectory = Trajectory::from(
                 section.get("Trajectory").unwrap_or_default()
             );
@@ -197,16 +201,14 @@ impl KfnIni {
                     syncs.append(&mut sync_times);
                 }
             }
-            //dbg!(&syncs);
+            dbg!(&text_count);
 
             if text_count != 0 {
 
                 for j in 0..text_count {
                     let mut key = String::from("Text");
                     key.push_str(&j.to_string());
-
                     let value = section.get(key).unwrap();
-
                     texts.push(value.to_owned());
                 }
                 

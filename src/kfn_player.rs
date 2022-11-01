@@ -1,9 +1,10 @@
 
 
+use std::time::Instant;
+
+use async_trait::async_trait;
 use crossbeam::channel::Receiver;
 
-use crossbeam::thread;
-use crossbeam::thread::scope;
 use image::DynamicImage;
 use image::imageops::FilterType;
 use speedy2d::color::Color;
@@ -11,91 +12,140 @@ use speedy2d::dimen::Vector2;
 use speedy2d::font::{Font, TextLayout, TextOptions};
 
 use speedy2d::image::{ImageDataType, ImageSmoothingMode};
-use speedy2d::window::{WindowHandler, WindowHelper};
+use speedy2d::window::{WindowHandler, WindowHelper, WindowStartupInfo};
 use speedy2d::Graphics2D;
 
 
 
 use crate::fonts::DefaultFonts;
+use crate::helpers::Entry;
+use crate::helpers::event::{Event, EventType};
 use crate::kfn_data::KfnData;
 
 #[derive(Debug, Clone)]
 pub struct KfnPlayer {
     pub data: KfnData,
     pub curr_window_size: Vector2<u32>,
-    pub receiver: Receiver<String>,
-    stash: Vec<DynamicImage>,
+    curr_background_entry: Entry,
+    event_buffer: Vec<Event>,
+    start_time: Instant,
+    receiver: Receiver<usize>,
 
 }
 
 impl KfnPlayer {
-    pub fn new(data: KfnData, curr_window_size: (u32, u32), receiver: Receiver<String>) -> Self {
-        Self { data, curr_window_size: Vector2::from((curr_window_size.0, curr_window_size.1)), receiver, stash: Vec::new() }
+    pub fn new(data: KfnData, curr_window_size: (u32, u32), event_buffer: Vec<Event>, receiver: Receiver<usize>) -> Self {
+        Self { 
+            data,
+            curr_window_size: Vector2::from((curr_window_size.0, curr_window_size.1)),
+            curr_background_entry: Entry::default(),
+            event_buffer,
+            start_time: Instant::now(),
+            receiver
+        }
     }
+
+    /// Function for setting the player's background.
+    
+    fn set_background(&self, entry_name: &str, graphics: &mut Graphics2D) {
+        
+        graphics.clear_screen(Color::BLACK);
+        // match for initial image in library
+        match self.data.get_entry_by_name(entry_name) {
+            Some(background_entry) => {
+                if background_entry != self.curr_background_entry {
+                    //load raw image data from memory
+                    let raw_image = image::load_from_memory(&background_entry.file_bin)
+                    .expect("Invalid image file.")
+                    // resize to fit the window
+                    .resize_to_fill(self.curr_window_size.x, self.curr_window_size.y, FilterType::Triangle)
+                    .into_rgb8().into_raw();
+                    // convert raw image data to an actual drawable image
+                    let image = graphics.create_image_from_raw_pixels(
+                    ImageDataType::RGB, 
+                    ImageSmoothingMode::NearestNeighbor,
+                    // scale for current window
+                    (self.curr_window_size.x, self.curr_window_size.y),
+                    &raw_image).unwrap();
+                    graphics.draw_image(Vector2::new(0.0, 0.0), &image);
+                }
+            },
+            None => {
+                println!("Image entry {} not found.", entry_name);
+            },
+        }
+        
+    }
+
+    
 }
 
-
+#[async_trait]
 impl WindowHandler for KfnPlayer {
 
-    fn on_resize(
-            &mut self,
-            helper: &mut WindowHelper<()>,
-            size_pixels: Vector2<u32>
-        ) {
-        
-        self.curr_window_size = size_pixels;
-        helper.request_redraw()
-
+    fn on_start(&mut self, helper: &mut WindowHelper<()>, info: WindowStartupInfo) {
+        helper.set_resizable(false);
     }
 
+    fn on_draw(&mut self, helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
 
-    fn on_draw(
-            &mut self,
-            helper: &mut WindowHelper<()>,
-            graphics: &mut Graphics2D
-        ) {
-
-        graphics.clear_screen(Color::BLACK);
-
-        
-        
-        match self.data.get_entry_by_name(
-                &self.data.song.effs[0].initial_lib_image
-        ) {
-            Some(f) => {
-                if !self.stash.is_empty() {
-                    let xd = graphics.create_image_from_raw_pixels(ImageDataType::RGB, ImageSmoothingMode::NearestNeighbor, (self.curr_window_size.x, self.curr_window_size.y), &self.stash[0].to_rgb8());
-                    graphics.draw_image(Vector2::new(0.0, 0.0), &xd.unwrap())
-                } else {
-                    let mut image = image::load_from_memory(&f.file_bin).unwrap();
-                    image = image.resize_to_fill(self.curr_window_size.x, self.curr_window_size.y, FilterType::Nearest);
-                    self.stash.push(image.clone());
-                    let xd = graphics.create_image_from_raw_pixels(ImageDataType::RGB, ImageSmoothingMode::NearestNeighbor, (self.curr_window_size.x, self.curr_window_size.y), &image.to_rgb8());
-                    graphics.draw_image(Vector2::new(0.0, 0.0), &xd.unwrap())
-                }
-                
-            },
-            None => (),
-        }
-
+        // clear screen
+        //graphics.clear_screen(Color::BLACK); // need to implement default bg color
+        // window only resizable through other means
+        //self.set_background("kaibutsu_05.jpg", graphics);
         match self.receiver.try_recv() {
-            Ok(s) => {
-                let scale = (self.data.song.effs[1].initial_font.1 / 3) as f32;
-                let mut font = Font::new(DefaultFonts::arial()).unwrap();
-                if &self.data.song.effs[1].initial_font.0 != "Arial Black" {
-                    font = Font::new(&self.data.get_entry_by_name(&self.data.song.effs[1].initial_font.0).unwrap().file_bin).unwrap_or(
-                        Font::new(DefaultFonts::arial()).unwrap()
-                    );
+            Ok(event_time) => {
+                println!("{} received", event_time);
+                if let Some(next_event) = self.event_buffer.iter().position(|event| event.time  == event_time) {
+                    match &self.event_buffer[next_event].event_type {
+                        EventType::Animation(ae) => {
+                            //dbg!(&self.start_time.elapsed().as_millis());
+                            match &ae.action {
+                                crate::kfn_ini::eff::Action::ChgBgImg(entryname) => {
+                                    dbg!(&entryname);
+                                    println!("Background changed.");
+                                    self.set_background(&entryname, graphics);
+                                    helper.request_redraw()
+                                },
+                                _ => print!("|")
+                            }
+                        },
+                        EventType::Text(t) => {
+                            print!("_");
+                        }
+                    }
                 }
-                let text = font.layout_text(&s, scale, TextOptions::new());
-                graphics.draw_text(Vector2::from(((self.curr_window_size.x/4) as f32, (self.curr_window_size.y/2) as f32)), Color::BLUE, &text);
-                
             },
-            Err(_) => (),
-        }
+            _ => {
+               
+            },
+        };
         
+        /* if let Some(next_event) = self.event_buffer.first() {
+            if next_event.time == self.receiver.try_recv().unwrap_or(0) {
+                match &next_event.event_type {
+                    EventType::Animation(ae) => {
+                        dbg!(&self.start_time.elapsed().as_millis());
+                        match &ae.action {
+                            crate::kfn_ini::eff::Action::ChgBgImg(entryname) => {
+                                dbg!(&entryname);
+                                self.set_background(&entryname, graphics);
+                            },
+                            _ => ()
+                        }
+                    },
+                    EventType::Text(t) => {
+
+                    }
+                }
+            }
+        }*/
+
+        //self.set_background(&self.data.song.effs[0].initial_lib_image, graphics);
+        
+
         
         helper.request_redraw()
-        
     }
+    
 }

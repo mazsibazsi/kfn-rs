@@ -27,10 +27,14 @@ use std::time::Instant;
 use crate::helpers::Entry;
 use crate::helpers::file_type::FileType;
 use crate::helpers::file_type::ToBinary;
+use crate::helpers::event::Event;
+
+use crate::helpers::event::EventType;
+use crate::helpers::event::EventType::Animation;
+
 
 // rodio
 use rodio::{OutputStream, Sink};
-use speedy2d::dimen::Vector2;
 
 
 // header
@@ -263,7 +267,7 @@ impl Kfn {
 
         self.data.read_ini();
         
-        self.data.song.read_eff();
+        self.data.song.load_eff();
 
         Ok(true)
     }
@@ -306,7 +310,9 @@ impl Kfn {
 
 
         let mut texts_and_syncs: Vec<(String, (usize, String))> = Vec::new();
-         
+        
+        let mut events: Vec<Event> = Vec::new();
+
         for eff in &self.data.song.effs {
 
 
@@ -339,12 +345,12 @@ impl Kfn {
                 }
             }
 
-            dbg!(&display);
+            //dbg!(&display);
 
             if texts.len() > 0 && eff.syncs.len() > 0 {
-
-                for i in 0..eff.syncs.len()-1 {
-
+                // FIXME out of bounds exception happens here sometimes
+                for i in 0..eff.syncs.len()-2 {
+                    //dbg!(&texts_and_syncs.len());
                     texts_and_syncs.push((display[i].clone(), (eff.syncs[i], texts[i].clone())))
                 }
 
@@ -353,18 +359,40 @@ impl Kfn {
         texts_and_syncs
     }
 
+    pub fn get_animation_events(&self) -> Vec<Event> {
+        let mut events: Vec<Event> = Vec::new();
+        // Select the Eff# fields in the Songs.ini
+        for eff in &self.data.song.effs {
+            // Select the Anim# lines
+            for anim in &eff.anims {
+                // Separate the time
+                let time = anim.time;
+                // Go through each AnimEntry for their actions
+                for animentry in anim.anim_entries.clone() {
+                    events.push(
+                        Event {
+                            event_type: Animation(animentry),
+                            time,
+                        }
+                    )
+                }
+            }
+        }
+        events
+    }
+
     /// Start playback and returns the thread receiver, that sends
-    pub fn play(&mut self) -> (Sender<String>, Receiver<String>) {
+    pub fn play(&mut self) -> (Sender<usize>, Receiver<usize>) {
 
         // initialize channels
-        let (sender_player, receiver_caller): (Sender<String>, Receiver<String>) = unbounded();
-        let (sender_caller, receiver_player): (Sender<String>, Receiver<String>) = unbounded();
+        let (sender_player, receiver_caller): (Sender<usize>, Receiver<usize>) = unbounded();
+        let (sender_caller, receiver_player): (Sender<usize>, Receiver<usize>) = unbounded();
         // read audio file
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
         // get sync times
         let syncs_times = self.get_texts_and_syncs();
-
-        dbg!(&syncs_times);
+        let events = self.get_animation_events();
+        //dbg!(&syncs_times);
         thread::spawn(move || {
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let sink = Sink::try_new(&stream_handle).unwrap();
@@ -373,21 +401,22 @@ impl Kfn {
             
             let start = Instant::now();
             let mut i = 0;
+            
 
             loop {
-
                 match receiver_player.try_recv() {
                     Ok(s) => {
-                        match s.as_str() {
-                            "END" => break,
-                            &_ => (),
+                        match s {
+                            0000 => break,
+                            _ => (),
                         }
                     },
                     Err(_) => (),
                 }
-
-                if (syncs_times[i].1.0 * 10) as u128 == start.elapsed().as_millis() {
-                    sender_player.send(syncs_times[i].0.clone()).unwrap();
+                //dbg!(events[i].time);
+                if (events[i].time *10) as u128 <= start.elapsed().as_millis() {
+                    sender_player.send(events[i].time).unwrap();
+                    println!("{} sent", events[i].time);
                     //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].1.0 * 10, start.elapsed().as_millis())).unwrap();
                     i += 1;
                 }
@@ -408,11 +437,13 @@ impl Kfn {
 
 
 
-        let window = Window::new_centered("Title", (800, 600)).unwrap();
+        let window = Window::new_centered(&self.header.title, (800, 600)).unwrap();
         
-        let (sender, receiver) = self.play();
-        window.run_loop(
-            KfnPlayer::new(self.data.clone(), (800, 600), receiver)
+        let events = self.get_animation_events();
+        dbg!(&events[1]);
+        let (_sender, receiver) = self.play();
+            window.run_loop(
+                KfnPlayer::new(self.data.clone(), (800, 600), events, receiver)
         );
 
     }

@@ -104,7 +104,7 @@ mod tests {
         
         kfn.parse().unwrap();
 
-        kfn.data.song.read_eff();
+        kfn.data.song.load_eff();
 
     }
 
@@ -115,7 +115,7 @@ mod tests {
         
         kfn.parse().unwrap();
 
-        kfn.data.song.read_eff();
+        kfn.data.song.load_eff();
         
         kfn.data.song.ini.clear();
 
@@ -132,23 +132,24 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn playback_test() {
 
         let mut kfn = Kfn::open("test/input.kfn");
     
         kfn.parse().unwrap();
 
-        kfn.data.song.read_eff();
+        kfn.data.song.load_eff();
 
-        kfn.get_texts_and_syncs();
+        //kfn.get_texts_and_syncs();
 
         let (sender_caller, receiver_caller) = kfn.play();
         //sender_caller.send("END".to_string()).unwrap();
         let now = Instant::now();
 
         loop {
-            if now.elapsed() > Duration::from_secs(10) {
-                sender_caller.send_deadline("END".to_string(), Instant::now()).unwrap();
+            if now.elapsed() > Duration::from_secs(100) {
+                sender_caller.send_deadline(0000, Instant::now()).unwrap();
                 break;
             }
             match receiver_caller.try_recv() {
@@ -160,12 +161,13 @@ mod tests {
     }
 
     #[test]
+    
     fn playback_video_test() {
         let mut kfn = Kfn::open("test/input.kfn");
     
         kfn.parse().unwrap();
 
-        kfn.data.song.read_eff();
+        kfn.data.song.load_eff();
 
         kfn.play_kfn();
     }
