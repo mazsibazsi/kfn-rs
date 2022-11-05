@@ -9,13 +9,12 @@ use trajectory::Trajectory;
 
 use crate::kfn_header::KfnHeader;
 
-use super::helpers::Entry;
+use crate::helpers::Entry;
 
 
 /// Wrapper for the Song.ini file.
 #[derive(Default, Clone)]
 pub struct KfnIni {
-    
     /// The Song.ini file itself, represented using the ini-rust library.
     /// To learn more: https://github.com/zonyitoo/rust-ini
     pub ini: Ini,
@@ -26,7 +25,6 @@ pub struct KfnIni {
 impl KfnIni {
     /// Creating a new ini file.
     pub fn new() -> Self {
-
         Self { ini: Ini::new(), effs: Vec::new(), }
     }
 
@@ -57,47 +55,58 @@ impl KfnIni {
     }
 
     /// Populating the General section with empty data.
-    pub fn populate_from_header(&mut self, header: KfnHeader) {
+    pub fn populate_from_header(&mut self, header: &KfnHeader) {
 
-        let mut source = String::from("1,I,");
+        let mut source = String::new();
+        if header.source_file.len() > 4 {
+            if &header.source_file[0..=3] != "1,I," {
+                source.push_str("1,I,");
+            }
+        }
+        
         source.push_str(&header.source_file);
 
+        
 
         self.ini.with_section(Some("General"))
-            .set("Title", header.title)
-            .set("Artist", header.artist)
-            .set("Album", header.album)
-            .set("Composer", header.composer)
-            .set("Year", header.year)
-            .set("Track", header.trak)
-            .set("GenreID", header.genre.to_string())
-            .set("Copyright", header.copyright)
+            .set("Title", &header.title)
+            .set("Artist", &header.artist)
+            .set("Album", &header.album)
+            .set("Composer", &header.composer)
+            .set("Year", &header.year)
+            .set("Track", &header.trak)
+            .set("GenreID", &header.genre.to_string())
+            .set("Copyright", &header.copyright)
             .set("Comment", "")
             .set("Source", source)
             .set("EffectCount", "")
-            .set("LanguageID", header.language)
+            .set("LanguageID", &header.language)
             .set("DiffMen", header.diff_men.to_string())
             .set("DiffWomen", header.diff_women.to_string())
             .set("KFNType", header.kfn_type.to_string())
             .set("Properties", "")
             .set("KaraokeVersion", "")
             .set("VocalGuide", "")
-            .set("KaraFunization", header.karafunizer);
+            .set("KaraFunization", &header.karafunizer);
 
     }
 
     /// Reading the Eff# headed sections
-    pub fn read_eff(&mut self) {
+    pub fn load_eff(&mut self) {
         
         // get the number of effects to parse
         let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap().to_string().parse::<usize>().unwrap();
 
-        for i in 1..effect_count {
+        // based on the number of effects...
+        for i in 1..=effect_count {
             
+            // create a string "Eff"
             let mut eff = String::from("Eff");
 
+            // add the number, which effect we're working with
             eff.push_str(&i.to_string());
             
+            // select the Eff# section based on the string we previously constructed
             let section = self.ini.section(Some(eff)).unwrap();
             
             // TODO implement the rest of the properties
@@ -105,16 +114,39 @@ impl KfnIni {
 
             // number of animations
             let nb_anim = section.get("NbAnim").unwrap().to_string().parse::<usize>().unwrap();
+            // number of text lines
             let text_count = section.get("TextCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
-            let trajectory = Trajectory::from(
+            // starting trajectory
+            let initial_trajectory = Trajectory::from(
                 section.get("Trajectory").unwrap_or_default()
             );
+            // looking for initial library image
+            let initial_lib_image = match section.get("LibImage") {
+                Some(s) => s.to_string(),
+                None => "".to_string(),
+            };
+            // looking for initial video file
+            let initial_video_file = match section.get("VideoFile") {
+                Some(s) => s.to_string(),
+                None => "".to_string(),
+            };
+            // looking for initial font
+            let initial_font: (String, u32) = match section.get("Font") {
+                Some(s) => {
+                    let res: Vec<&str> = s.split("*").collect();
+                    (res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap())
+                },
+                // if none, revert to Arial Black, as that is the default in the original program
+                None => {
+                    ("Arial Black".to_string(), 12)
+                }
+            };
+
             // list of animations in Anim# form
             let mut anims: Vec<Anim> = Vec::new();
             let mut syncs: Vec<usize> = Vec::new();
             let mut texts: Vec<String> = Vec::new();
             
-            //dbg!(nb_anim);
             // reading the animations, if there are any.
             if nb_anim != 0 {
                 for j in 0..nb_anim {
@@ -177,22 +209,22 @@ impl KfnIni {
                     syncs.append(&mut sync_times);
                 }
             }
-            //dbg!(&syncs);
+            dbg!(&text_count);
 
             if text_count != 0 {
 
                 for j in 0..text_count {
                     let mut key = String::from("Text");
                     key.push_str(&j.to_string());
-
                     let value = section.get(key).unwrap();
-
                     texts.push(value.to_owned());
                 }
                 
             }
+            
+            
             //dbg!(&texts);
-            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory: trajectory});
+            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory, initial_lib_image, initial_video_file, initial_font });
         } // for i in 1..effect_count {
        
     }

@@ -8,7 +8,10 @@ pub mod kfn_data;
 pub mod kfn_header;
 /// The Song.ini file, containing essential information about the KFN.
 pub mod kfn_ini;
-
+/// Window for displaying the KFN file.
+pub mod kfn_player;
+/// Default fonts module
+pub mod fonts;
 
 use std::io::Cursor;
 // standard lib
@@ -17,16 +20,18 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::Write;
 use std::path::Path;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::Sender;
-use std::sync::mpsc::channel;
 use std::thread;
+use std::time::Duration;
 use std::time::Instant;
 
 // helpers
 use crate::helpers::Entry;
 use crate::helpers::file_type::FileType;
 use crate::helpers::file_type::ToBinary;
+use crate::helpers::event::Event;
+
+use crate::helpers::event::EventType::Animation;
+
 
 // rodio
 use rodio::{OutputStream, Sink};
@@ -37,6 +42,15 @@ use crate::kfn_header::KfnHeader;
 
 // data
 use kfn_data::KfnData;
+
+// player
+use kfn_player::KfnPlayer;
+
+// speedy2d helpers
+use speedy2d::Window;
+
+// crossbeam
+use crossbeam::channel::{Sender, Receiver, unbounded};
 
 // derivative
 use derivative::Derivative;
@@ -58,6 +72,7 @@ pub struct Kfn {
 
     /// The data container for the file.
     pub data: KfnData,
+
 }
 
 #[derive(Debug)]
@@ -79,6 +94,7 @@ impl Kfn {
             read_head: usize::default(),
             header: KfnHeader::default(),
             data: KfnData::new(),
+
          }
     }
 
@@ -89,6 +105,7 @@ impl Kfn {
             read_head: 0, 
             header: KfnHeader::default(), 
             data: KfnData::new(),
+
         }
     }
 
@@ -250,7 +267,7 @@ impl Kfn {
 
         self.data.read_ini();
         
-        self.data.song.read_eff();
+        self.data.song.load_eff();
 
         Ok(true)
     }
@@ -284,14 +301,17 @@ impl Kfn {
     /// Update the ini file from header
     pub fn update(&mut self) {
 
-        self.data.song.populate_from_header(self.header.clone());
+        self.data.song.populate_from_header(&self.header);
         self.data.update_ini();
     }
 
     /// Get texts with syncs in.
-    pub fn get_texts_and_syncs(&self) -> Vec<(usize, String)> {
+    pub fn get_texts_and_syncs(&self) -> Vec<(String, (usize, String))> {
 
-        let mut texts_and_syncs: Vec<(usize, String)> = Vec::new();
+
+        let mut texts_and_syncs: Vec<(String, (usize, String))> = Vec::new();
+        
+        let mut events: Vec<Event> = Vec::new();
 
         for eff in &self.data.song.effs {
 
@@ -302,23 +322,36 @@ impl Kfn {
             }
 
             let mut texts: Vec<String> = Vec::new();
-
+            let mut display: Vec<String> = Vec::new();
             for text in &eff.texts {
+
                 if text == "" {
                     //texts.push(text.to_string());
                 }
                 if text.contains("/") || text.contains(" ") {
 
-                    let mut words: Vec<String> = text.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
-                    texts.append(&mut words);
+                    
+                    let mut line: Vec<String> = text.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
+                    
+
+
+                    let displayed = text.split(&['/'][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>().join("");
+                    for _ in 0..line.len() {
+                        display.push(displayed.clone());
+                    }
+                    
+                    texts.append(&mut line);
+                
                 }
             }
 
-            if eff.texts.len() > 0 && eff.syncs.len() > 0 {
+            //dbg!(&display);
 
-                for i in 0..eff.syncs.len()-1 {
-
-                    texts_and_syncs.push((eff.syncs[i], texts[i].clone()))
+            if texts.len() > 0 && eff.syncs.len() > 0 {
+                // FIXME out of bounds exception happens here sometimes
+                for i in 0..eff.syncs.len()-2 {
+                    //dbg!(&texts_and_syncs.len());
+                    texts_and_syncs.push((display[i].clone(), (eff.syncs[i], texts[i].clone())))
                 }
 
             }
@@ -326,39 +359,118 @@ impl Kfn {
         texts_and_syncs
     }
 
+    pub fn get_animation_events(&self) -> Vec<Event> {
+        let mut events: Vec<Event> = Vec::new();
+        // Select the Eff# fields in the Songs.ini
+        for eff in &self.data.song.effs {
+            // Select the Anim# lines
+            for anim in &eff.anims {
+                // Separate the time
+                let time = anim.time;
+                // Go through each AnimEntry for their actions
+                for animentry in anim.anim_entries.clone() {
+                    events.push(
+                        Event {
+                            event_type: Animation(animentry),
+                            time,
+                        }
+                    )
+                }
+            }
+        }
+        events
+    }
+
     /// Start playback and returns the thread receiver, that sends
-    pub fn play(&mut self) -> (Sender<String>, Receiver<String>) {
+    pub fn play(&mut self) -> (Sender<String>, Receiver<usize>) {
 
-        let (sender_player, receiver_caller) = channel();
-        let (sender_caller, _receiver_player) = channel();
-
+        // initialize channels
+        let (sender_player, receiver_caller): (Sender<usize>, Receiver<usize>) = unbounded();
+        let (sender_caller, receiver_player): (Sender<String>, Receiver<String>) = unbounded();
         // read audio file
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
+        // get sync times
+        //let syncs_times = self.get_texts_and_syncs();
+        let events = self.get_animation_events();
 
-        let syncs_times = self.get_texts_and_syncs();
-
+        //dbg!(&syncs_times);
         thread::spawn(move || {
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let sink = Sink::try_new(&stream_handle).unwrap();
             // add it to the sink
             sink.append(rodio::Decoder::new(BufReader::new(cursor)).unwrap());
             
-            let start = Instant::now();
+            let mut start_time = Instant::now();
+            let mut offset = Duration::from_millis(0);
             let mut i = 0;
+            
 
             loop {
                 
 
-                if (syncs_times[i].0 * 10) as u128 == start.elapsed().as_millis() {
-                    sender_player.send(syncs_times[i].1.clone()).unwrap();
-                    sender_player.send(format!("sync {} elapsed {}", syncs_times[i].0 * 10, start.elapsed().as_millis())).unwrap();
-                    i += 1;
+                match receiver_player.try_recv() {
+                    Ok(s) => {
+                        match s.as_str() {
+                            "STOP" => break,
+                            "PAUSE" => {
+                                println!("KFN-RS: PAUSE signal received.");
+                                offset = (start_time.elapsed() + offset);
+                                sink.pause();
+                                dbg!(&offset);
+                                
+                            },
+                            "RESUME" => {
+                                println!("KFN-RS: RESUME signal received.");
+                                sink.play();
+                                start_time = Instant::now();
+
+                            },
+                            _ => (),
+                        }
+                    },
+                    Err(_) => (),
                 }
+                //dbg!(events[i].time);
+                if !sink.is_paused() {
+                    if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                        sender_player.send(events[i].time).unwrap();
+                        println!("{} sent", events[i].time);
+                        //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].1.0 * 10, start.elapsed().as_millis())).unwrap();
+                        i += 1;
+                    }
+                    
+                }
+                
+                
+
             }
             
         });
 
         (sender_caller, receiver_caller)
+    }
+
+    /// Start playback in a separate window.
+    pub fn play_kfn(&mut self) {
+
+        // falling back to X11/Xorg, for server side decoration
+        std::env::set_var("WAYLAND_DISPLAY", "");
+
+
+
+        let window = Window::new_centered(&self.header.title, (800, 600)).unwrap();
+        
+        let events = self.get_animation_events();
+        dbg!(&events[1]);
+        let (sender, receiver) = self.play();
+            window.run_loop(
+                KfnPlayer::new(self.data.clone(), 
+                (800, 600), 
+                events, 
+                receiver, 
+                sender)
+        );
+
     }
 
     /// Exporting to .kfn 
