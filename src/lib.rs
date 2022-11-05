@@ -21,6 +21,7 @@ use std::io::BufReader;
 use std::io::Write;
 use std::path::Path;
 use std::thread;
+use std::time::Duration;
 use std::time::Instant;
 
 // helpers
@@ -29,7 +30,6 @@ use crate::helpers::file_type::FileType;
 use crate::helpers::file_type::ToBinary;
 use crate::helpers::event::Event;
 
-use crate::helpers::event::EventType;
 use crate::helpers::event::EventType::Animation;
 
 
@@ -382,16 +382,17 @@ impl Kfn {
     }
 
     /// Start playback and returns the thread receiver, that sends
-    pub fn play(&mut self) -> (Sender<usize>, Receiver<usize>) {
+    pub fn play(&mut self) -> (Sender<String>, Receiver<usize>) {
 
         // initialize channels
         let (sender_player, receiver_caller): (Sender<usize>, Receiver<usize>) = unbounded();
-        let (sender_caller, receiver_player): (Sender<usize>, Receiver<usize>) = unbounded();
+        let (sender_caller, receiver_player): (Sender<String>, Receiver<String>) = unbounded();
         // read audio file
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
         // get sync times
-        let syncs_times = self.get_texts_and_syncs();
+        //let syncs_times = self.get_texts_and_syncs();
         let events = self.get_animation_events();
+
         //dbg!(&syncs_times);
         thread::spawn(move || {
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -399,27 +400,47 @@ impl Kfn {
             // add it to the sink
             sink.append(rodio::Decoder::new(BufReader::new(cursor)).unwrap());
             
-            let start = Instant::now();
+            let mut start_time = Instant::now();
+            let mut offset = Duration::from_millis(0);
             let mut i = 0;
             
 
             loop {
+                
+
                 match receiver_player.try_recv() {
                     Ok(s) => {
-                        match s {
-                            0000 => break,
+                        match s.as_str() {
+                            "STOP" => break,
+                            "PAUSE" => {
+                                println!("KFN-RS: PAUSE signal received.");
+                                offset = (start_time.elapsed() + offset);
+                                sink.pause();
+                                dbg!(&offset);
+                                
+                            },
+                            "RESUME" => {
+                                println!("KFN-RS: RESUME signal received.");
+                                sink.play();
+                                start_time = Instant::now();
+
+                            },
                             _ => (),
                         }
                     },
                     Err(_) => (),
                 }
                 //dbg!(events[i].time);
-                if (events[i].time *10) as u128 == start.elapsed().as_millis() {
-                    sender_player.send(events[i].time).unwrap();
-                    println!("{} sent", events[i].time);
-                    //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].1.0 * 10, start.elapsed().as_millis())).unwrap();
-                    i += 1;
+                if !sink.is_paused() {
+                    if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                        sender_player.send(events[i].time).unwrap();
+                        println!("{} sent", events[i].time);
+                        //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].1.0 * 10, start.elapsed().as_millis())).unwrap();
+                        i += 1;
+                    }
+                    
                 }
+                
                 
 
             }
@@ -441,9 +462,13 @@ impl Kfn {
         
         let events = self.get_animation_events();
         dbg!(&events[1]);
-        let (_sender, receiver) = self.play();
+        let (sender, receiver) = self.play();
             window.run_loop(
-                KfnPlayer::new(self.data.clone(), (800, 600), events, receiver)
+                KfnPlayer::new(self.data.clone(), 
+                (800, 600), 
+                events, 
+                receiver, 
+                sender)
         );
 
     }

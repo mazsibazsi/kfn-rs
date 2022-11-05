@@ -114,21 +114,29 @@ impl KfnIni {
 
             // number of animations
             let nb_anim = section.get("NbAnim").unwrap().to_string().parse::<usize>().unwrap();
-            // number of texts
+            // number of text lines
             let text_count = section.get("TextCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
             // starting trajectory
             let initial_trajectory = Trajectory::from(
                 section.get("Trajectory").unwrap_or_default()
             );
+            // looking for initial library image
             let initial_lib_image = match section.get("LibImage") {
                 Some(s) => s.to_string(),
                 None => "".to_string(),
             };
+            // looking for initial video file
+            let initial_video_file = match section.get("VideoFile") {
+                Some(s) => s.to_string(),
+                None => "".to_string(),
+            };
+            // looking for initial font
             let initial_font: (String, u32) = match section.get("Font") {
                 Some(s) => {
                     let res: Vec<&str> = s.split("*").collect();
                     (res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap())
                 },
+                // if none, revert to Arial Black, as that is the default in the original program
                 None => {
                     ("Arial Black".to_string(), 12)
                 }
@@ -216,7 +224,7 @@ impl KfnIni {
             
             
             //dbg!(&texts);
-            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory, initial_lib_image, initial_font });
+            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory, initial_lib_image, initial_video_file, initial_font });
         } // for i in 1..effect_count {
        
     }

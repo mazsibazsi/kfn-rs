@@ -148,8 +148,8 @@ mod tests {
         let now = Instant::now();
 
         loop {
-            if now.elapsed() > Duration::from_secs(100) {
-                sender_caller.send_deadline(0000, Instant::now()).unwrap();
+            if now.elapsed() > Duration::from_secs(10) {
+                sender_caller.send_deadline("STOP".to_string(), Instant::now()).unwrap();
                 break;
             }
             match receiver_caller.try_recv() {

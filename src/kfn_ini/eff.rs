@@ -11,6 +11,8 @@ pub struct Eff {
     pub anims: Vec<Anim>,
     /// initial background, if there is any = LibImage
     pub initial_lib_image: String,
+    /// initial video, if there is any = VideoFile
+    pub initial_video_file: String,
     /// Initial font setting
     pub initial_font: (String, u32),
     /// Collection of the sync timestamps in ms.
