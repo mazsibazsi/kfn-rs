@@ -1,10 +1,10 @@
 
 
 
-use std::thread;
+
 use std::time::Instant;
 
-use async_trait::async_trait;
+
 use crossbeam::channel::Receiver;
 
 use image::DynamicImage;
