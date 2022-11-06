@@ -37,7 +37,7 @@ pub struct KfnPlayer {
     event_list: Vec<Event>,
     event_queue: Vec<Event>,
     screen_buffer: ScreenBuffer,
-    receiver: Receiver<usize>,
+    receiver: Receiver<Event>,
     sender: Sender<String>,
     paused: bool,
 }
@@ -56,7 +56,7 @@ impl KfnPlayer {
     /// * `event_list` - The list of events to be played back by the KfnPlayer
     /// * `receiver` - The timing signal coming from the thread in the kfn-rs library
     /// 
-    pub fn new(data: KfnData, window_size: (u32, u32), event_list: Vec<Event>, receiver: Receiver<usize>, sender: Sender<String>) -> Self {
+    pub fn new(data: KfnData, window_size: (u32, u32), event_list: Vec<Event>, receiver: Receiver<Event>, sender: Sender<String>) -> Self {
         
         Self { 
             data,
@@ -152,16 +152,12 @@ impl WindowHandler for KfnPlayer {
 
             // look for incoming events
             match self.receiver.try_recv() {
-                Ok(event_time) => {
-                    println!("{} received", event_time);
-                    if let Some(next_event) = self.event_list.iter().position(|event| event.time  == event_time) {
-                        let event = self.event_list[next_event].clone();
-                        self.event_queue.push(event);
-                        
-                    } else {
-                        
-                    }
+                Ok(event_recv) => {
+                    println!("{} received", event_recv.time);
                     
+                        self.event_queue.push(event_recv);
+                        
+
                 },
                 Err(_e) => {
                     

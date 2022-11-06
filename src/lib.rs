@@ -317,7 +317,7 @@ impl Kfn {
 
 
             if eff.id >= 51 {
-
+                // skip the 51 and above eff lines
                 continue;
             }
 
@@ -349,8 +349,8 @@ impl Kfn {
 
             if texts.len() > 0 && eff.syncs.len() > 0 {
                 // FIXME out of bounds exception happens here sometimes
-                for i in 0..eff.syncs.len()-2 {
-                    //dbg!(&texts_and_syncs.len());
+                for i in 0..eff.texts.len() {
+                    //dbg!(&texts_and_syncs);
                     texts_and_syncs.push((display[i].clone(), (eff.syncs[i], texts[i].clone())))
                 }
 
@@ -382,16 +382,17 @@ impl Kfn {
     }
 
     /// Start playback and returns the thread receiver, that sends
-    pub fn play(&mut self) -> (Sender<String>, Receiver<usize>) {
+    pub fn play(&mut self) -> (Sender<String>, Receiver<Event>) {
 
         // initialize channels
-        let (sender_player, receiver_caller): (Sender<usize>, Receiver<usize>) = unbounded();
+        let (sender_player, receiver_caller): (Sender<Event>, Receiver<Event>) = unbounded();
         let (sender_caller, receiver_player): (Sender<String>, Receiver<String>) = unbounded();
         // read audio file
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
         // get sync times
         //let syncs_times = self.get_texts_and_syncs();
         let events = self.get_animation_events();
+        //let texts_and_syncs = self.get_texts_and_syncs();
 
         //dbg!(&syncs_times);
         thread::spawn(move || {
@@ -403,6 +404,7 @@ impl Kfn {
             let mut start_time = Instant::now();
             let mut offset = Duration::from_millis(0);
             let mut i = 0;
+            //let mut j = 0;
             
             dbg!(&events);
 
@@ -434,12 +436,17 @@ impl Kfn {
                 //dbg!(events[i].time);
                 if !sink.is_paused() {
                     if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
-                        sender_player.send(events[i].time).unwrap();
+                        sender_player.send(events[i].clone()).unwrap();
                         println!("{} sent", events[i].time);
                         //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].1.0 * 10, start.elapsed().as_millis())).unwrap();
                         i += 1;
                     }
-                    
+
+                    /*if (texts_and_syncs[j].1.0) as u128 <= (offset + start_time.elapsed()).as_millis() {
+
+                        println!("{}", texts_and_syncs[j].1.1);
+                        j+=1;
+                    }*/
                 }
                 
                 
