@@ -126,7 +126,7 @@ impl KfnIni {
                 None => "".to_string(),
             };
             // looking for initial video file
-            let initial_video_file = match section.get("VideoFile") {
+            let initial_video_file = match section.get("Vi/mazsibazsideoFile") {
                 Some(s) => s.to_string(),
                 None => "".to_string(),
             };
