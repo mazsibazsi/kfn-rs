@@ -404,6 +404,7 @@ impl Kfn {
             let mut offset = Duration::from_millis(0);
             let mut i = 0;
             
+            dbg!(&events);
 
             loop {
                 
