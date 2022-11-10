@@ -100,11 +100,8 @@ impl KfnIni {
         // based on the number of effects...
         for i in 1..=effect_count {
             
-            // create a string "Eff"
-            let mut eff = String::from("Eff");
-
-            // add the number, which effect we're working with
-            eff.push_str(&i.to_string());
+            // create a string "Eff#" 
+            let eff = format!("Eff{n}", n = &i);
             
             // select the Eff# section based on the string we previously constructed
             let section = self.ini.section(Some(eff)).unwrap();
@@ -126,7 +123,7 @@ impl KfnIni {
                 None => "".to_string(),
             };
             // looking for initial video file
-            let initial_video_file = match section.get("Vi/mazsibazsideoFile") {
+            let initial_video_file = match section.get("VideoFile") {
                 Some(s) => s.to_string(),
                 None => "".to_string(),
             };
@@ -151,11 +148,12 @@ impl KfnIni {
             if nb_anim != 0 {
                 for j in 0..nb_anim {
 
+                    // create a vector for the AnimEntries
                     let mut anim_entries: Vec<AnimEntry> = Vec::new();
 
-                    let mut key = String::from("Anim");
-    
-                    key.push_str(&j.to_string());
+                    // construct the key with the proper number
+                    let key = format!("Anim{n}", n = &j);
+
     
                     let value = section.get(key).unwrap();
                     
@@ -214,8 +212,7 @@ impl KfnIni {
             if text_count != 0 {
 
                 for j in 0..text_count {
-                    let mut key = String::from("Text");
-                    key.push_str(&j.to_string());
+                    let key = format!("Text{n}", n = &j);
                     let value = section.get(key).unwrap();
                     texts.push(value.to_owned());
                 }

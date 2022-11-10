@@ -2,6 +2,7 @@
 
 
 
+use std::rc::Rc;
 use std::time::Instant;
 use std::thread;
 
@@ -40,11 +41,22 @@ pub struct KfnPlayer {
     receiver: Receiver<Event>,
     sender: Sender<String>,
     paused: bool,
+    diag: (bool, Diagnostics),
 }
 
 #[derive(Debug, Clone)]
 struct ScreenBuffer {
     background: Event,
+}
+
+#[derive(Debug, Clone)]
+struct Diagnostics {
+    counter: usize,
+    frame_count: u32,
+    last_update: Instant,
+    fps: f32,
+    draw_time: f32,
+    font: Font,
 }
 
 impl KfnPlayer {
@@ -57,7 +69,18 @@ impl KfnPlayer {
     /// * `receiver` - The timing signal coming from the thread in the kfn-rs library
     /// 
     pub fn new(data: KfnData, window_size: (u32, u32), event_list: Vec<Event>, receiver: Receiver<Event>, sender: Sender<String>) -> Self {
-        
+        let diag = (true, Diagnostics {
+            counter: 0,
+            frame_count: 0,
+            last_update: std::time::Instant::now(),
+            font: Font::new(include_bytes!(
+                "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+            ))
+            .unwrap(),
+            fps: 0.0,
+            draw_time: 0.0,
+        });
+
         Self { 
             data,
             window_size: Vector2::from((window_size.0, window_size.1)),
@@ -68,6 +91,7 @@ impl KfnPlayer {
             receiver,
             sender,
             paused: false,
+            diag,
         }
     }
 
@@ -130,6 +154,10 @@ impl KfnPlayer {
     
 }
 
+fn prep_label(font: &Font, txt: &str) -> Rc<speedy2d::font::FormattedTextBlock> {
+    font.layout_text(txt, 42.0, TextOptions::new())
+}
+
 
 impl WindowHandler for KfnPlayer {
 
@@ -141,7 +169,18 @@ impl WindowHandler for KfnPlayer {
 
     fn on_draw(&mut self, helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
         //println!("Screen redrawn.");
+        let draw_start = Instant::now();
+        let text = 
+            &self.diag.1.font.layout_text(
+                &std::format!(
+                    "Frame: {}, FPS: {:.2}, frame draw time: {:.2} µs",
+                    self.diag.1.counter,
+                    self.diag.1.fps,
+                    self.diag.1.draw_time),
+                    42.0,
+                    TextOptions::new());
         
+
         if !self.paused {
 
             // clear screen
@@ -164,7 +203,7 @@ impl WindowHandler for KfnPlayer {
                 },
             };
             
-            if self.event_queue.len() != 0 {
+            while self.event_queue.len() != 0 {
                 if let Some(event) = self.event_queue.pop() {
                     match &event.event_type {
                         EventType::Animation(ae) => {
@@ -181,34 +220,20 @@ impl WindowHandler for KfnPlayer {
                     
                 }
             }
-        
-            /* if let Some(next_event) = self.event_buffer.first() {
-                if next_event.time == self.receiver.try_recv().unwrap_or(0) {
-                    match &next_event.event_type {
-                        EventType::Animation(ae) => {
-                            dbg!(&self.start_time.elapsed().as_millis());
-                            match &ae.action {
-                                crate::kfn_ini::eff::Action::ChgBgImg(entryname) => {
-                                    dbg!(&entryname);
-                                    self.set_background(&entryname, graphics);
-                                },
-                                _ => ()
-                            }
-                        },
-                        EventType::Text(t) => {
-
-                        }
-                    }
-                }
-            }*/
-
-            //self.set_background(&self.data.song.effs[0].initial_lib_image, graphics);
             
 
-            
+            if self.diag.0 {
+                graphics.draw_text((0.0, 0.0), speedy2d::color::Color::RED, &text);
+            }
         }
-
+        
         helper.request_redraw();
+
+        self.diag.1.draw_time = draw_start.elapsed().as_secs_f32() * 1000.0 * 1000.0;
+        self.diag.1.counter += 1;
+        self.diag.1.frame_count += 1;
+        self.diag.1.fps = 1.0 / (draw_start - self.diag.1.last_update).as_secs_f32();
+        self.diag.1.last_update = draw_start;
         //if screen_changed {helper.request_redraw()};
     }
 
