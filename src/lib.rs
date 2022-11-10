@@ -14,7 +14,6 @@ pub mod kfn_player;
 pub mod fonts;
 
 use std::io::Cursor;
-// standard lib
 use std::fs;
 use std::fs::File;
 use std::io::BufReader;
@@ -258,9 +257,7 @@ impl Kfn {
             self.data.entries[i].file_bin = 
                         Vec::from(
                             &self.file_data[
-                                self.data.entries[i].offset
-                                ..
-                                self.data.entries[i].offset +   self.data.entries[i].len1
+                                self.data.entries[i].offset..self.data.entries[i].offset +   self.data.entries[i].len1
                             ]
                         );
         }
@@ -317,7 +314,7 @@ impl Kfn {
 
 
             if eff.id >= 51 {
-                // skip the 51 and above eff lines
+                // skip the 51 and above eff lines, as those are not text-sync entries
                 continue;
             }
 
@@ -389,10 +386,9 @@ impl Kfn {
         let (sender_caller, receiver_player): (Sender<String>, Receiver<String>) = unbounded();
         // read audio file
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
-        // get sync times
-        //let syncs_times = self.get_texts_and_syncs();
+
         let events = self.get_animation_events();
-        //let texts_and_syncs = self.get_texts_and_syncs();
+
 
         //dbg!(&syncs_times);
         thread::spawn(move || {
@@ -419,14 +415,11 @@ impl Kfn {
                                 println!("KFN-RS: PAUSE signal received.");
                                 offset = (start_time.elapsed() + offset);
                                 sink.pause();
-                                dbg!(&offset);
-                                
                             },
                             "RESUME" => {
                                 println!("KFN-RS: RESUME signal received.");
                                 sink.play();
                                 start_time = Instant::now();
-
                             },
                             _ => (),
                         }
@@ -436,17 +429,11 @@ impl Kfn {
                 //dbg!(events[i].time);
                 if !sink.is_paused() {
                     if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                        
                         sender_player.send(events[i].clone()).unwrap();
                         println!("{} sent", events[i].time);
-                        //sender_player.send(format!("sync {} elapsed {}", syncs_times[i].1.0 * 10, start.elapsed().as_millis())).unwrap();
                         i += 1;
                     }
-
-                    /*if (texts_and_syncs[j].1.0) as u128 <= (offset + start_time.elapsed()).as_millis() {
-
-                        println!("{}", texts_and_syncs[j].1.1);
-                        j+=1;
-                    }*/
                 }
                 
                 

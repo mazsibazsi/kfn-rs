@@ -2,16 +2,12 @@
 
 
 
-use std::rc::Rc;
 use std::time::Instant;
-use std::thread;
 
 
 use crossbeam::channel::Receiver;
 use crossbeam::channel::Sender;
 
-use crossbeam::channel::unbounded;
-use image::DynamicImage;
 use image::imageops::FilterType;
 
 use speedy2d::color::Color;
@@ -23,12 +19,10 @@ use speedy2d::Graphics2D;
 
 
 
-use crate::fonts::DefaultFonts;
 use crate::helpers::Entry;
 use crate::helpers::event::{Event, EventType};
 use crate::kfn_data::KfnData;
 use crate::kfn_ini::eff::Action;
-use crate::kfn_ini::eff::AnimEntry;
 
 #[derive(Debug, Clone)]
 pub struct KfnPlayer {
@@ -154,14 +148,10 @@ impl KfnPlayer {
     
 }
 
-fn prep_label(font: &Font, txt: &str) -> Rc<speedy2d::font::FormattedTextBlock> {
-    font.layout_text(txt, 42.0, TextOptions::new())
-}
-
 
 impl WindowHandler for KfnPlayer {
 
-    fn on_start(&mut self, helper: &mut WindowHelper<()>, info: WindowStartupInfo)  {
+    fn on_start(&mut self, helper: &mut WindowHelper<()>, _info: WindowStartupInfo)  {
         helper.set_resizable(true);
         helper.set_icon_from_rgba_pixels(
             image::open("src/icons/icon32x32.png").unwrap().into_bytes(), (32, 32)).unwrap();
@@ -238,6 +228,6 @@ impl WindowHandler for KfnPlayer {
     }
 
     fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, _button: speedy2d::window::MouseButton) {
-            self.play_pause();
+        self.play_pause();
     }
 }
