@@ -21,3 +21,5 @@
 - [x] Extracting .ini (songtext, animations, sync timestamps)
 - [x] Modifying .ini (songtext, animations, sync timestamps)
 - [x] Repackaging .ini (songtext, animations, sync timestamps)
+
+# fpscounter by amarao https://github.com/amarao/fpscount used for diagnostics.

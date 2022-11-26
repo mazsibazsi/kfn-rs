@@ -4,7 +4,7 @@ mod tests {
     use std::{time::{Instant, Duration}};
 
 
-    use crate::{Kfn, kfn_header::KfnHeader};
+    use crate::{Kfn, kfn_header::KfnHeader, helpers::event::EventType};
 
     #[test]
     fn file_reading() {
@@ -153,7 +153,14 @@ mod tests {
                 break;
             }
             match receiver_caller.try_recv() {
-                Ok(s) => println!("{}", s),
+                Ok(e) => {
+                    match e.event_type {
+                        EventType::Text(t) => {
+                            println!("{}", t)
+                        }
+                        _ => ()
+                    }
+                },
                 Err(_) => (),
             }
 

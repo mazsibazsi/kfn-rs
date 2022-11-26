@@ -1,5 +1,3 @@
-use std::default;
-
 use crate::kfn_ini::eff::AnimEntry;
 
 /// Representing the states, that the player has to implement and display.

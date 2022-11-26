@@ -3,14 +3,11 @@
 
 
 use std::time::Instant;
-use std::thread;
 
 
 use crossbeam::channel::Receiver;
 use crossbeam::channel::Sender;
 
-use crossbeam::channel::unbounded;
-use image::DynamicImage;
 use image::imageops::FilterType;
 
 use speedy2d::color::Color;
@@ -22,12 +19,10 @@ use speedy2d::Graphics2D;
 
 
 
-use crate::fonts::DefaultFonts;
 use crate::helpers::Entry;
 use crate::helpers::event::{Event, EventType};
 use crate::kfn_data::KfnData;
 use crate::kfn_ini::eff::Action;
-use crate::kfn_ini::eff::AnimEntry;
 
 #[derive(Debug, Clone)]
 pub struct KfnPlayer {
@@ -37,14 +32,25 @@ pub struct KfnPlayer {
     event_list: Vec<Event>,
     event_queue: Vec<Event>,
     screen_buffer: ScreenBuffer,
-    receiver: Receiver<usize>,
+    receiver: Receiver<Event>,
     sender: Sender<String>,
     paused: bool,
+    diag: (bool, Diagnostics),
 }
 
 #[derive(Debug, Clone)]
 struct ScreenBuffer {
     background: Event,
+}
+
+#[derive(Debug, Clone)]
+struct Diagnostics {
+    counter: usize,
+    frame_count: u32,
+    last_update: Instant,
+    fps: f32,
+    draw_time: f32,
+    font: Font,
 }
 
 impl KfnPlayer {
@@ -56,8 +62,19 @@ impl KfnPlayer {
     /// * `event_list` - The list of events to be played back by the KfnPlayer
     /// * `receiver` - The timing signal coming from the thread in the kfn-rs library
     /// 
-    pub fn new(data: KfnData, window_size: (u32, u32), event_list: Vec<Event>, receiver: Receiver<usize>, sender: Sender<String>) -> Self {
-        
+    pub fn new(data: KfnData, window_size: (u32, u32), event_list: Vec<Event>, receiver: Receiver<Event>, sender: Sender<String>) -> Self {
+        let diag = (true, Diagnostics {
+            counter: 0,
+            frame_count: 0,
+            last_update: std::time::Instant::now(),
+            font: Font::new(include_bytes!(
+                "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+            ))
+            .unwrap(),
+            fps: 0.0,
+            draw_time: 0.0,
+        });
+
         Self { 
             data,
             window_size: Vector2::from((window_size.0, window_size.1)),
@@ -68,6 +85,7 @@ impl KfnPlayer {
             receiver,
             sender,
             paused: false,
+            diag,
         }
     }
 
@@ -128,20 +146,42 @@ impl KfnPlayer {
         }
     }
     
+    /// Setting the initial state of the player.
+    fn set_initial_state(&mut self) {
+        // initial bg
+        let initial_bg = self.data.song.effs[0].initial_lib_image.clone();
+        self.event_queue.push(Event {
+            time: 0,
+            event_type: EventType::Animation(crate::kfn_ini::eff::AnimEntry {
+                 action: Action::ChgBgImg(initial_bg), effect: None, trans_time: 0.0, trans_type: crate::kfn_ini::eff::TransType::None })
+        })
+    }
 }
 
 
 impl WindowHandler for KfnPlayer {
 
-    fn on_start(&mut self, helper: &mut WindowHelper<()>, info: WindowStartupInfo)  {
+    fn on_start(&mut self, helper: &mut WindowHelper<()>, _info: WindowStartupInfo)  {
         helper.set_resizable(true);
         helper.set_icon_from_rgba_pixels(
             image::open("src/icons/icon32x32.png").unwrap().into_bytes(), (32, 32)).unwrap();
+        self.set_initial_state();
     }
 
     fn on_draw(&mut self, helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
         //println!("Screen redrawn.");
+        let draw_start = Instant::now();
+        let text = 
+            &self.diag.1.font.layout_text(
+                &std::format!(
+                    "Frame: {}, FPS: {:.2}, frame draw time: {:.2} µs",
+                    self.diag.1.counter,
+                    self.diag.1.fps,
+                    self.diag.1.draw_time),
+                    42.0,
+                    TextOptions::new());
         
+
         if !self.paused {
 
             // clear screen
@@ -152,23 +192,19 @@ impl WindowHandler for KfnPlayer {
 
             // look for incoming events
             match self.receiver.try_recv() {
-                Ok(event_time) => {
-                    println!("{} received", event_time);
-                    if let Some(next_event) = self.event_list.iter().position(|event| event.time  == event_time) {
-                        let event = self.event_list[next_event].clone();
-                        self.event_queue.push(event);
-                        
-                    } else {
-                        
-                    }
+                Ok(event_recv) => {
+                    println!("{} received", event_recv.time);
                     
+                        self.event_queue.push(event_recv);
+                        
+
                 },
                 Err(_e) => {
                     
                 },
             };
             
-            if self.event_queue.len() != 0 {
+            while self.event_queue.len() != 0 {
                 if let Some(event) = self.event_queue.pop() {
                     match &event.event_type {
                         EventType::Animation(ae) => {
@@ -185,38 +221,24 @@ impl WindowHandler for KfnPlayer {
                     
                 }
             }
-        
-            /* if let Some(next_event) = self.event_buffer.first() {
-                if next_event.time == self.receiver.try_recv().unwrap_or(0) {
-                    match &next_event.event_type {
-                        EventType::Animation(ae) => {
-                            dbg!(&self.start_time.elapsed().as_millis());
-                            match &ae.action {
-                                crate::kfn_ini::eff::Action::ChgBgImg(entryname) => {
-                                    dbg!(&entryname);
-                                    self.set_background(&entryname, graphics);
-                                },
-                                _ => ()
-                            }
-                        },
-                        EventType::Text(t) => {
-
-                        }
-                    }
-                }
-            }*/
-
-            //self.set_background(&self.data.song.effs[0].initial_lib_image, graphics);
             
 
-            
+            if self.diag.0 {
+                graphics.draw_text((0.0, 0.0), speedy2d::color::Color::RED, &text);
+            }
         }
-
+        
         helper.request_redraw();
+
+        self.diag.1.draw_time = draw_start.elapsed().as_secs_f32() * 1000.0 * 1000.0;
+        self.diag.1.counter += 1;
+        self.diag.1.frame_count += 1;
+        self.diag.1.fps = 1.0 / (draw_start - self.diag.1.last_update).as_secs_f32();
+        self.diag.1.last_update = draw_start;
         //if screen_changed {helper.request_redraw()};
     }
 
     fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, _button: speedy2d::window::MouseButton) {
-            self.play_pause();
+        self.play_pause();
     }
 }
