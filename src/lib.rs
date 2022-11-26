@@ -375,38 +375,41 @@ impl Kfn {
                 }
             }
         }
+        dbg!(&events);
         events
     }
 
     /// Start playback and returns the thread receiver, that sends
     pub fn play(&mut self) -> (Sender<String>, Receiver<Event>) {
 
-        // initialize channels
+        // initialize channels for communicating
+        // between the player and the lib
         let (sender_player, receiver_caller): (Sender<Event>, Receiver<Event>) = unbounded();
         let (sender_caller, receiver_player): (Sender<String>, Receiver<String>) = unbounded();
-        // read audio file
+        // read audio file INTO MEMORY
         let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
 
         let events = self.get_animation_events();
 
 
-        //dbg!(&syncs_times);
         thread::spawn(move || {
+            // create an output for the song/mp3
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let sink = Sink::try_new(&stream_handle).unwrap();
-            // add it to the sink
+            // add it to the created output sink
+            // this starts playing asap
             sink.append(rodio::Decoder::new(BufReader::new(cursor)).unwrap());
             
             let mut start_time = Instant::now();
             let mut offset = Duration::from_millis(0);
             let mut i = 0;
-            //let mut j = 0;
             
             dbg!(&events);
 
             loop {
                 
-
+                // these are the commands that can come
+                // form the graphical player
                 match receiver_player.try_recv() {
                     Ok(s) => {
                         match s.as_str() {
@@ -426,14 +429,17 @@ impl Kfn {
                     },
                     Err(_) => (),
                 }
-                //dbg!(events[i].time);
+
                 if !sink.is_paused() {
-                    if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                    if events.len() > 0 {
+                        if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
                         
-                        sender_player.send(events[i].clone()).unwrap();
-                        println!("{} sent", events[i].time);
-                        i += 1;
+                            sender_player.send(events[i].clone()).unwrap();
+                            println!("{} sent", events[i].time);
+                            i += 1;
+                        }
                     }
+                    
                 }
                 
                 
@@ -456,7 +462,7 @@ impl Kfn {
         let window = Window::new_centered(&self.header.title, (800, 600)).unwrap();
         
         let events = self.get_animation_events();
-        dbg!(&events[1]);
+        dbg!(&events);
         let (sender, receiver) = self.play();
             window.run_loop(
                 KfnPlayer::new(self.data.clone(), 

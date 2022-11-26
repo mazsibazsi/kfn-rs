@@ -146,6 +146,16 @@ impl KfnPlayer {
         }
     }
     
+    /// Setting the initial state of the player.
+    fn set_initial_state(&mut self) {
+        // initial bg
+        let initial_bg = self.data.song.effs[0].initial_lib_image.clone();
+        self.event_queue.push(Event {
+            time: 0,
+            event_type: EventType::Animation(crate::kfn_ini::eff::AnimEntry {
+                 action: Action::ChgBgImg(initial_bg), effect: None, trans_time: 0.0, trans_type: crate::kfn_ini::eff::TransType::None })
+        })
+    }
 }
 
 
@@ -155,6 +165,7 @@ impl WindowHandler for KfnPlayer {
         helper.set_resizable(true);
         helper.set_icon_from_rgba_pixels(
             image::open("src/icons/icon32x32.png").unwrap().into_bytes(), (32, 32)).unwrap();
+        self.set_initial_state();
     }
 
     fn on_draw(&mut self, helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {

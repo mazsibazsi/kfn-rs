@@ -213,7 +213,7 @@ impl KfnIni {
 
                 for j in 0..text_count {
                     let key = format!("Text{n}", n = &j);
-                    let value = section.get(key).unwrap();
+                    let value = section.get(key).unwrap_or_default();
                     texts.push(value.to_owned());
                 }
                 
