@@ -1,8 +1,6 @@
 pub mod eff;
 pub mod trajectory;
 
-use std::fmt::Debug;
-
 use ini::Ini;
 
 use eff::{AnimEntry, Eff, Effect, Action, TransType, Anim};

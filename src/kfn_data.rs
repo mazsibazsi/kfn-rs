@@ -1,19 +1,10 @@
-
-
-use std::fs;
-use std::path::Path;
-
-use derivative::Derivative;
-use ini::Ini;
-
-use super::helpers::{Entry, u32_to_u8_arr};
-use super::helpers::file_type::{FileType, ToBinary};
-
-use super::kfn_ini::KfnIni;
+use crate::helpers::{Entry, u32_to_u8_arr};
+use crate::helpers::file_type::{FileType, ToBinary};
+use crate::kfn_ini::KfnIni;
 
 
 /// KfnHeader depicting the header contents of a KFN file
-#[derive(Derivative, Clone, Default)]
+#[derive(derivative::Derivative, Clone, Default)]
 #[derivative(Debug)]
 pub struct KfnData {
     /// The location of the Songs.ini file.
@@ -64,7 +55,7 @@ impl KfnData {
     pub fn read_ini(&mut self) {
 
         //self.song.ini = Ini::load_from_str(String::from_utf8(self.get_songs_ini().unwrap().file_bin).unwrap().as_str()).unwrap();
-        self.song.ini = Ini::load_from_str(String::from_utf8(self.get_entry_by_name("Song.ini").unwrap().file_bin).unwrap().as_str()).unwrap();
+        self.song.ini = ini::Ini::load_from_str(String::from_utf8(self.get_entry_by_name("Song.ini").unwrap().file_bin).unwrap().as_str()).unwrap();
         
     }
 
@@ -127,7 +118,7 @@ impl KfnData {
     pub fn add_entry_from_file(&mut self, filename: &str) {
 
         // reading the file from the file system
-        let new_file = fs::read(filename).unwrap();
+        let new_file = std::fs::read(filename).unwrap();
         
         // splitting it at the point to get the extension
         let parts : Vec<&str> = filename.split('.').collect();
@@ -150,7 +141,7 @@ impl KfnData {
             None => FileType::INVALID,
         };
 
-        let filename = Path::new(filename);
+        let filename = std::path::Path::new(filename);
         let filename = filename.file_name().unwrap().to_str().unwrap();
 
         // create an entry

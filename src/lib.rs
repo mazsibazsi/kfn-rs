@@ -13,28 +13,14 @@ pub mod kfn_player;
 /// Default fonts module
 pub mod fonts;
 
-use std::io::Cursor;
-use std::fs;
-use std::fs::File;
-use std::io::BufReader;
-use std::io::Write;
-use std::path::Path;
-use std::thread;
-use std::time::Duration;
-use std::time::Instant;
+
+
 
 // helpers
 use crate::helpers::Entry;
 use crate::helpers::file_type::FileType;
 use crate::helpers::file_type::ToBinary;
-use crate::helpers::event::Event;
-
-use crate::helpers::event::EventType::Animation;
-
-
-// rodio
-use rodio::{OutputStream, Sink};
-
+use crate::helpers::event::{Event, EventType};
 
 // header
 use crate::kfn_header::KfnHeader;
@@ -45,17 +31,8 @@ use kfn_data::KfnData;
 // player
 use kfn_player::KfnPlayer;
 
-// speedy2d helpers
-use speedy2d::Window;
 
-// crossbeam
-use crossbeam::channel::{Sender, Receiver, unbounded};
-
-// derivative
-use derivative::Derivative;
-
-
-#[derive(Derivative)]
+#[derive(derivative::Derivative)]
 #[derivative(Debug)]
 /// Struct representing a KFN file and it's components.
 pub struct Kfn {
@@ -86,7 +63,7 @@ impl Kfn {
     /// Takes the filename as parameter.
     pub fn open(filename: &str) -> Self {
         Self { 
-            file_data: match fs::read(filename) {
+            file_data: match std::fs::read(filename) {
                 Ok(file) => file,
                 Err(e) => panic!("File not found! {}", e),
             },
@@ -308,7 +285,7 @@ impl Kfn {
 
         let mut texts_and_syncs: Vec<(String, (usize, String))> = Vec::new();
         
-        let mut events: Vec<Event> = Vec::new();
+        let _events: Vec<Event> = Vec::new();
 
         for eff in &self.data.song.effs {
 
@@ -368,7 +345,7 @@ impl Kfn {
                 for animentry in anim.anim_entries.clone() {
                     events.push(
                         Event {
-                            event_type: Animation(animentry),
+                            event_type: EventType::Animation(animentry),
                             time,
                         }
                     )
@@ -380,28 +357,28 @@ impl Kfn {
     }
 
     /// Start playback and returns the thread receiver, that sends
-    pub fn play(&mut self) -> (Sender<String>, Receiver<Event>) {
+    pub fn play(&mut self) -> (crossbeam::channel::Sender<String>, crossbeam::channel::Receiver<Event>) {
 
         // initialize channels for communicating
         // between the player and the lib
-        let (sender_player, receiver_caller): (Sender<Event>, Receiver<Event>) = unbounded();
-        let (sender_caller, receiver_player): (Sender<String>, Receiver<String>) = unbounded();
+        let (sender_player, receiver_caller): (crossbeam::channel::Sender<Event>, crossbeam::channel::Receiver<Event>) = crossbeam::channel::unbounded();
+        let (sender_caller, receiver_player): (crossbeam::channel::Sender<String>, crossbeam::channel::Receiver<String>) = crossbeam::channel::unbounded();
         // read audio file INTO MEMORY
-        let cursor: Cursor<Vec<u8>> = Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
+        let cursor: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
 
         let events = self.get_animation_events();
 
 
-        thread::spawn(move || {
+        std::thread::spawn(move || {
             // create an output for the song/mp3
-            let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-            let sink = Sink::try_new(&stream_handle).unwrap();
+            let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+            let sink = rodio::Sink::try_new(&stream_handle).unwrap();
             // add it to the created output sink
             // this starts playing asap
-            sink.append(rodio::Decoder::new(BufReader::new(cursor)).unwrap());
+            sink.append(rodio::Decoder::new(std::io::BufReader::new(cursor)).unwrap());
             
-            let mut start_time = Instant::now();
-            let mut offset = Duration::from_millis(0);
+            let mut start_time = std::time::Instant::now();
+            let mut offset = std::time::Duration::from_millis(0);
             let mut i = 0;
             
             dbg!(&events);
@@ -416,13 +393,13 @@ impl Kfn {
                             "STOP" => break,
                             "PAUSE" => {
                                 println!("KFN-RS: PAUSE signal received.");
-                                offset = (start_time.elapsed() + offset);
+                                offset = start_time.elapsed() + offset;
                                 sink.pause();
                             },
                             "RESUME" => {
                                 println!("KFN-RS: RESUME signal received.");
                                 sink.play();
-                                start_time = Instant::now();
+                                start_time = std::time::Instant::now();
                             },
                             _ => (),
                         }
@@ -459,7 +436,7 @@ impl Kfn {
 
 
 
-        let window = Window::new_centered(&self.header.title, (800, 600)).unwrap();
+        let window = speedy2d::Window::new_centered(&self.header.title, (800, 600)).unwrap();
         
         let events = self.get_animation_events();
         dbg!(&events);
@@ -482,7 +459,7 @@ impl Kfn {
         data.append(&mut self.header.to_binary());
         data.append(&mut self.data.to_binary());
         
-        fs::write(filename, data).unwrap();
+        std::fs::write(filename, data).unwrap();
     }
 
     /// Extracting all files.
@@ -506,17 +483,17 @@ impl Kfn {
     pub fn extract(&mut self, entry: Entry, output_filename: &str) {
         
         // set the path and prefix
-        let path = Path::new(&output_filename);
+        let path = std::path::Path::new(&output_filename);
         let prefix = path.parent().unwrap();
         
         // create directories if they don't exist
-        fs::create_dir_all(prefix).unwrap();
+        std::fs::create_dir_all(prefix).unwrap();
         
-        let mut output = File::create(path).unwrap();
+        let mut output = std::fs::File::create(path).unwrap();
 
         let buf: Vec<u8> = Vec::from(entry.file_bin);
         
-        output.write_all(&buf).unwrap();
+        std::io::Write::write_all(&mut output, &buf).unwrap();
     }
     
 
