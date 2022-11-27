@@ -1,21 +1,21 @@
-extern crate ffmpeg_next as ffmpeg;
+//extern crate ffmpeg_next as ffmpeg;
 
 use kfn_rs::Kfn;
 use kfn_rs::kfn_player::KfnPlayer;
 
-use ffmpeg::format::{input, Pixel};
+/* use ffmpeg::format::{input, Pixel};
 use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context, flag::Flags};
-use ffmpeg::util::frame::video::Video;
+use ffmpeg::util::frame::video::Video; */
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 
 fn main() {
 
-    ffmpeg::init().unwrap();
+    //ffmpeg::init().unwrap();
 
-    let mut kfn = Kfn::open("test/input.kfn");
+    let mut kfn = Kfn::open("test/jeebuschrist.kfn");
     kfn.parse().unwrap();
     kfn.data.song.load_eff();
 
@@ -73,9 +73,9 @@ fn main() {
     kfn.play_kfn();
 }
 
-fn _save_file(frame: &Video, index: usize) -> std::result::Result<(), std::io::Error> {
-    let mut file = File::create(format!("frames/frame{}.ppm", index)).unwrap();
-    file.write_all(format!("P6\n{} {}\n255\n", frame.width(), frame.height()).as_bytes()).unwrap();
-    file.write_all(frame.data(0)).unwrap();
-    Ok(())
-}
+// fn _save_file(frame: &Video, index: usize) -> std::result::Result<(), std::io::Error> {
+//     let mut file = File::create(format!("frames/frame{}.ppm", index)).unwrap();
+//     file.write_all(format!("P6\n{} {}\n255\n", frame.width(), frame.height()).as_bytes()).unwrap();
+//     file.write_all(frame.data(0)).unwrap();
+//     Ok(())
+// }

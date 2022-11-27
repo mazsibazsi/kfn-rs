@@ -63,8 +63,9 @@ impl KfnData {
     /// Reads the INI file into the struct.
     pub fn read_ini(&mut self) {
 
-        self.song.ini = Ini::load_from_str(String::from_utf8(self.get_songs_ini().unwrap().file_bin).unwrap().as_str()).unwrap();
-    
+        //self.song.ini = Ini::load_from_str(String::from_utf8(self.get_songs_ini().unwrap().file_bin).unwrap().as_str()).unwrap();
+        self.song.ini = Ini::load_from_str(String::from_utf8(self.get_entry_by_name("Song.ini").unwrap().file_bin).unwrap().as_str()).unwrap();
+        
     }
 
     /// Updates the ini file. Removes the Song.ini entry, then recreates the INI file from the struct.
@@ -119,7 +120,7 @@ impl KfnData {
         let new_offset: usize = last_entry.offset + new_entry.len1;
         new_entry.offset = new_offset; */
         self.entries.push(new_entry);
-    
+        
     }
 
     /// Adding a new entry from the data.
@@ -136,6 +137,7 @@ impl KfnData {
             
             Some(v) =>
                 match *v {
+                    "ini" => FileType::SongIni,
                     "png" => FileType::Image,
                     "jpg" => FileType::Image,
                     "mp3" => FileType::Music,
@@ -167,7 +169,13 @@ impl KfnData {
         self.add_entry(new_entry);
 
         // update the ini, so that it contains the new file as well
-        self.update_ini();
+        // we only do this, if it is not a Song.ini file
+        if extension != FileType::SongIni {
+            self.update_ini();
+        } else {
+            self.read_ini();
+        }
+        
 
     }
 
@@ -233,14 +241,21 @@ impl KfnData {
             return;
         }
 
+        for entry in &self.entries {
+            dbg!(&entry.filename);
+        }
         // Extract the entry and save it to have it's length later.
         let removed_entry = self.entries.remove(id as usize);
+
+
 
         // Iterate over the entries...
         for i in id as usize+1..self.entries.len()-1 {
             // ...and remove the removed entry's length from their offset.
             self.entries[i as usize].offset -= removed_entry.len1;
         }
+
+        
     
     }
 

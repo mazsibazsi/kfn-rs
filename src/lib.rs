@@ -431,7 +431,7 @@ impl Kfn {
                 }
 
                 if !sink.is_paused() {
-                    if events.len() > 0 {
+                    if events.len() > 0 && events.len() > i {
                         if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
                         
                             sender_player.send(events[i].clone()).unwrap();
@@ -455,7 +455,7 @@ impl Kfn {
     pub fn play_kfn(&mut self) {
 
         // falling back to X11/Xorg, for server side decoration
-        std::env::set_var("WAYLAND_DISPLAY", "");
+        //std::env::set_var("WAYLAND_DISPLAY", "");
 
 
 
