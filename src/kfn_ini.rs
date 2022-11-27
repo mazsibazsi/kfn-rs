@@ -95,11 +95,10 @@ impl KfnIni {
     pub fn load_eff(&mut self) {
         
         // get the number of effects to parse
-        let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap().to_string().parse::<usize>().unwrap();
+        let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
 
         // based on the number of effects...
         for i in 1..=effect_count {
-            
             // create a string "Eff#" 
             let eff = format!("Eff{n}", n = &i);
             
@@ -144,6 +143,7 @@ impl KfnIni {
             let mut syncs: Vec<usize> = Vec::new();
             let mut texts: Vec<String> = Vec::new();
             
+            dbg!(nb_anim);
             // reading the animations, if there are any.
             if nb_anim != 0 {
                 for j in 0..nb_anim {
@@ -154,7 +154,7 @@ impl KfnIni {
                     // construct the key with the proper number
                     let key = format!("Anim{n}", n = &j);
 
-    
+
                     let value = section.get(key).unwrap();
                     
                     // the time in ms, when the anim occurs. The first one will always be the time.
@@ -228,7 +228,7 @@ impl KfnIni {
 
     /// Returns the name of the source sound file. 
     pub fn get_source_name(&self) -> String {
-        dbg!(self.ini.get_from(Some("General"), "Source").unwrap()[4..].to_string());
+        dbg!(self.ini.get_from(Some("General"), "Source").unwrap_or_default()[4..].to_string());
         self.ini.get_from(Some("General"), "Source").unwrap()[4..].to_string()
     }
 

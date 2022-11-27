@@ -1,15 +1,3 @@
-
-
-
-
-use std::time::Instant;
-
-
-use crossbeam::channel::Receiver;
-use crossbeam::channel::Sender;
-
-use image::imageops::FilterType;
-
 use speedy2d::color::Color;
 use speedy2d::dimen::Vector2;
 use speedy2d::font::{Font, TextLayout, TextOptions};
@@ -29,11 +17,11 @@ pub struct KfnPlayer {
     pub data: KfnData,
     pub window_size: Vector2<u32>,
     curr_background_entry: Entry,
-    event_list: Vec<Event>,
+    _event_list: Vec<Event>,
     event_queue: Vec<Event>,
     screen_buffer: ScreenBuffer,
-    receiver: Receiver<Event>,
-    sender: Sender<String>,
+    receiver: crossbeam::channel::Receiver<Event>,
+    sender: crossbeam::channel::Sender<String>,
     paused: bool,
     diag: (bool, Diagnostics),
 }
@@ -47,7 +35,7 @@ struct ScreenBuffer {
 struct Diagnostics {
     counter: usize,
     frame_count: u32,
-    last_update: Instant,
+    last_update: std::time::Instant,
     fps: f32,
     draw_time: f32,
     font: Font,
@@ -62,11 +50,12 @@ impl KfnPlayer {
     /// * `event_list` - The list of events to be played back by the KfnPlayer
     /// * `receiver` - The timing signal coming from the thread in the kfn-rs library
     /// 
-    pub fn new(data: KfnData, window_size: (u32, u32), event_list: Vec<Event>, receiver: Receiver<Event>, sender: Sender<String>) -> Self {
+    pub fn new(data: KfnData, window_size: (u32, u32), event_list: Vec<Event>, receiver: crossbeam::channel::Receiver<Event>, sender: crossbeam::channel::Sender<String>) -> Self {
         let diag = (true, Diagnostics {
             counter: 0,
             frame_count: 0,
             last_update: std::time::Instant::now(),
+            // TODO make this ship with the binary, and not be Linux dependent
             font: Font::new(include_bytes!(
                 "/usr/share/fonts/noto/NotoSans-Regular.ttf"
             ))
@@ -79,7 +68,7 @@ impl KfnPlayer {
             data,
             window_size: Vector2::from((window_size.0, window_size.1)),
             curr_background_entry: Entry::default(),
-            event_list,
+            _event_list: event_list,
             event_queue: Vec::new(),
             screen_buffer: ScreenBuffer { background: Event::default() },
             receiver,
@@ -101,7 +90,7 @@ impl KfnPlayer {
                     let raw_image = image::load_from_memory(&background_entry.file_bin)
                     .expect("Invalid image file.")
                     // resize to fit the window
-                    .resize_to_fill(self.window_size.x, self.window_size.y, FilterType::Triangle)
+                    .resize_to_fill(self.window_size.x, self.window_size.y, image::imageops::FilterType::Triangle)
                     .into_rgb8().into_raw();
                     // convert raw image data to an actual drawable image
                     let image = graphics.create_image_from_raw_pixels(
@@ -170,7 +159,7 @@ impl WindowHandler for KfnPlayer {
 
     fn on_draw(&mut self, helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
         //println!("Screen redrawn.");
-        let draw_start = Instant::now();
+        let draw_start = std::time::Instant::now();
         let text = 
             &self.diag.1.font.layout_text(
                 &std::format!(

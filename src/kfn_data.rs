@@ -1,19 +1,10 @@
-
-
-use std::fs;
-use std::path::Path;
-
-use derivative::Derivative;
-use ini::Ini;
-
-use super::helpers::{Entry, u32_to_u8_arr};
-use super::helpers::file_type::{FileType, ToBinary};
-
-use super::kfn_ini::KfnIni;
+use crate::helpers::{Entry, u32_to_u8_arr};
+use crate::helpers::file_type::{FileType, ToBinary};
+use crate::kfn_ini::KfnIni;
 
 
 /// KfnHeader depicting the header contents of a KFN file
-#[derive(Derivative, Clone, Default)]
+#[derive(derivative::Derivative, Clone, Default)]
 #[derivative(Debug)]
 pub struct KfnData {
     /// The location of the Songs.ini file.
@@ -63,8 +54,9 @@ impl KfnData {
     /// Reads the INI file into the struct.
     pub fn read_ini(&mut self) {
 
-        self.song.ini = Ini::load_from_str(String::from_utf8(self.get_songs_ini().unwrap().file_bin).unwrap().as_str()).unwrap();
-    
+        //self.song.ini = Ini::load_from_str(String::from_utf8(self.get_songs_ini().unwrap().file_bin).unwrap().as_str()).unwrap();
+        self.song.ini = ini::Ini::load_from_str(String::from_utf8(self.get_entry_by_name("Song.ini").unwrap().file_bin).unwrap().as_str()).unwrap();
+        
     }
 
     /// Updates the ini file. Removes the Song.ini entry, then recreates the INI file from the struct.
@@ -119,14 +111,14 @@ impl KfnData {
         let new_offset: usize = last_entry.offset + new_entry.len1;
         new_entry.offset = new_offset; */
         self.entries.push(new_entry);
-    
+        
     }
 
     /// Adding a new entry from the data.
     pub fn add_entry_from_file(&mut self, filename: &str) {
 
         // reading the file from the file system
-        let new_file = fs::read(filename).unwrap();
+        let new_file = std::fs::read(filename).unwrap();
         
         // splitting it at the point to get the extension
         let parts : Vec<&str> = filename.split('.').collect();
@@ -136,6 +128,7 @@ impl KfnData {
             
             Some(v) =>
                 match *v {
+                    "ini" => FileType::SongIni,
                     "png" => FileType::Image,
                     "jpg" => FileType::Image,
                     "mp3" => FileType::Music,
@@ -148,7 +141,7 @@ impl KfnData {
             None => FileType::INVALID,
         };
 
-        let filename = Path::new(filename);
+        let filename = std::path::Path::new(filename);
         let filename = filename.file_name().unwrap().to_str().unwrap();
 
         // create an entry
@@ -167,7 +160,13 @@ impl KfnData {
         self.add_entry(new_entry);
 
         // update the ini, so that it contains the new file as well
-        self.update_ini();
+        // we only do this, if it is not a Song.ini file
+        if extension != FileType::SongIni {
+            self.update_ini();
+        } else {
+            self.read_ini();
+        }
+        
 
     }
 
@@ -233,14 +232,21 @@ impl KfnData {
             return;
         }
 
+        for entry in &self.entries {
+            dbg!(&entry.filename);
+        }
         // Extract the entry and save it to have it's length later.
         let removed_entry = self.entries.remove(id as usize);
+
+
 
         // Iterate over the entries...
         for i in id as usize+1..self.entries.len()-1 {
             // ...and remove the removed entry's length from their offset.
             self.entries[i as usize].offset -= removed_entry.len1;
         }
+
+        
     
     }
 
