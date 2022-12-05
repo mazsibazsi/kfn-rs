@@ -34,7 +34,7 @@ use kfn_player::KfnPlayer;
 
 #[derive(derivative::Derivative)]
 #[derivative(Debug)]
-/// Struct representing a KFN file and it's components.
+/// Struct representing a .kfn file and it's components, like the header and data.
 pub struct Kfn {
     
     /// The binary data in a vector of bytes.

@@ -12,9 +12,12 @@ use crate::helpers::event::{Event, EventType};
 use crate::kfn_data::KfnData;
 use crate::kfn_ini::eff::Action;
 
+/// The windowed graphical player of the kfn-rs library.
 #[derive(Debug, Clone)]
 pub struct KfnPlayer {
+    /// The data a parsed the .kfn file.
     pub data: KfnData,
+    /// The size of the window.
     pub window_size: Vector2<u32>,
     curr_background_entry: Entry,
     _event_list: Vec<Event>,
@@ -163,10 +166,10 @@ impl WindowHandler for KfnPlayer {
         let text = 
             &self.diag.1.font.layout_text(
                 &std::format!(
-                    "Frame: {}, FPS: {:.2}, frame draw time: {:.2} µs",
+                    "Frame: {}, FPS: {:.0}, frame draw time: {:.0} ms",
                     self.diag.1.counter,
                     self.diag.1.fps,
-                    self.diag.1.draw_time),
+                    self.diag.1.draw_time/1000.0),
                     42.0,
                     TextOptions::new());
         

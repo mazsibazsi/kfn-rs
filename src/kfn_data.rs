@@ -3,7 +3,7 @@ use crate::helpers::file_type::{FileType, ToBinary};
 use crate::kfn_ini::KfnIni;
 
 
-/// KfnHeader depicting the header contents of a KFN file
+/// The header of a .kfn file, which can be found at the beginning of a said file.
 #[derive(derivative::Derivative, Clone, Default)]
 #[derivative(Debug)]
 pub struct KfnData {
