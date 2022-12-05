@@ -12,7 +12,8 @@ use crate::kfn_header::KfnHeader;
 use crate::helpers::Entry;
 
 
-/// Wrapper for the Song.ini file.
+/// The Song.ini file, which is at the very end of a .kfn file.
+/// Contains most of the information for replicating a karaoke video.
 #[derive(Default, Clone)]
 pub struct KfnIni {
     /// The Song.ini file itself, represented using the ini-rust library.

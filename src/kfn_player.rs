@@ -2,6 +2,7 @@ use speedy2d::color::Color;
 use speedy2d::dimen::Vector2;
 use speedy2d::font::{Font, TextLayout, TextOptions};
 use speedy2d::image::{ImageDataType, ImageSmoothingMode};
+use speedy2d::shape::Rectangle;
 use speedy2d::window::{WindowHandler, WindowHelper, WindowStartupInfo};
 use speedy2d::Graphics2D;
 
@@ -12,9 +13,12 @@ use crate::helpers::event::{Event, EventType};
 use crate::kfn_data::KfnData;
 use crate::kfn_ini::eff::Action;
 
+/// The windowed graphical player of the kfn-rs library.
 #[derive(Debug, Clone)]
 pub struct KfnPlayer {
+    /// The data a parsed the .kfn file.
     pub data: KfnData,
+    /// The size of the window.
     pub window_size: Vector2<u32>,
     curr_background_entry: Entry,
     _event_list: Vec<Event>,
@@ -29,6 +33,7 @@ pub struct KfnPlayer {
 #[derive(Debug, Clone)]
 struct ScreenBuffer {
     background: Event,
+    tint: Color,
 }
 
 #[derive(Debug, Clone)]
@@ -70,7 +75,7 @@ impl KfnPlayer {
             curr_background_entry: Entry::default(),
             _event_list: event_list,
             event_queue: Vec::new(),
-            screen_buffer: ScreenBuffer { background: Event::default() },
+            screen_buffer: ScreenBuffer { background: Event::default(), tint: speedy2d::color::Color::WHITE },
             receiver,
             sender,
             paused: false,
@@ -79,7 +84,7 @@ impl KfnPlayer {
     }
 
     /// Function for setting the player's background.
-    fn set_background(&self, entry_name: &str, graphics: &mut Graphics2D) {
+    fn set_background(&self, entry_name: &str, graphics: &mut Graphics2D, color: speedy2d::color::Color) {
         
         graphics.clear_screen(Color::BLACK);
         // match for initial image in library
@@ -99,28 +104,40 @@ impl KfnPlayer {
                     // scale for current window
                     (self.window_size.x, self.window_size.y),
                     &raw_image).unwrap();
-                    graphics.draw_image(Vector2::new(0.0, 0.0), &image);
+                    let rect = Rectangle::new(
+                        Vector2::new(0.0, 0.0),
+                        Vector2::new(self.window_size.x as f32, self.window_size.y as f32),
+                    );
+                    graphics.draw_rectangle_image_tinted(rect, self.screen_buffer.tint, &image);
+                    //graphics.draw_image(Vector2::new(0.0, 0.0), &image);
                 }
             },
             None => {
-                println!("Image entry {} not found.", entry_name);
+                //println!("Image entry {} not found.", entry_name);
             },
         }
     }
 
-    fn draw_screen_buffer(&self, graphics: &mut Graphics2D) {
+    fn draw_screen_buffer(&mut self, _helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
         let bg = self.screen_buffer.background.event_type.clone();
-        match bg {
-            EventType::Animation(ae) => {
-                match ae.action {
-                    Action::ChgBgImg(bg_entry) => {
-                        self.set_background(&bg_entry, graphics)
+        //for event in self.screen_buffer.clone() {
+            match bg {
+                EventType::Animation(ae) => {
+                    match ae.action {
+                        Action::ChgBgImg(bg_entry) => {
+                            self.set_background(&bg_entry, graphics, speedy2d::color::Color::WHITE);
+                        }
+                        
+                        _ => ()
                     }
-                    _ => ()
                 }
+                _ => ()
             }
-            _ => ()
-        }
+        
+        //let bg = self.screen_buffer.background.event_type.clone();
+        //match bg {
+            
+        //}
     }
     /// Function for pausing and resuming the sink thread.
     fn play_pause(&mut self) {
@@ -163,10 +180,10 @@ impl WindowHandler for KfnPlayer {
         let text = 
             &self.diag.1.font.layout_text(
                 &std::format!(
-                    "Frame: {}, FPS: {:.2}, frame draw time: {:.2} µs",
+                    "Frame: {}, FPS: {:.0}, frame draw time: {:.0} ms",
                     self.diag.1.counter,
                     self.diag.1.fps,
-                    self.diag.1.draw_time),
+                    self.diag.1.draw_time/1000.0),
                     42.0,
                     TextOptions::new());
         
@@ -177,14 +194,14 @@ impl WindowHandler for KfnPlayer {
             graphics.clear_screen(Color::BLACK);
 
             // draw everything in screen buffer
-            self.draw_screen_buffer(graphics);
+            self.draw_screen_buffer(helper, graphics);
 
             // look for incoming events
             match self.receiver.try_recv() {
                 Ok(event_recv) => {
                     println!("{} received", event_recv.time);
-                    
-                        self.event_queue.push(event_recv);
+                    dbg!(&event_recv);
+                    self.event_queue.push(event_recv);
                         
 
                 },
@@ -193,14 +210,31 @@ impl WindowHandler for KfnPlayer {
                 },
             };
             
+            // if the event queue is not empty...
             while self.event_queue.len() != 0 {
+                // ...pop the next element that comes
                 if let Some(event) = self.event_queue.pop() {
                     match &event.event_type {
+                        // and if categorize it based on entries
                         EventType::Animation(ae) => {
                             match &ae.action {
+                                // simple bg change
                                 Action::ChgBgImg(_) => {
                                     self.screen_buffer.background = event.clone();
                                 },
+                                // adds tinting
+                                Action::ChgColImageColor(target_color) => {
+                                    let rgb_hex = &target_color.to_owned()[0..7];
+                                    let alpha_hex = u32::from_str_radix(&target_color.to_owned()[7..9], 16).unwrap() as f32;
+                                    let rgba_color = colorsys::Rgb::from_hex_str(rgb_hex).unwrap();
+                                    let color = speedy2d::color::Color::from_rgba(
+                                        (rgba_color.red()/255.0) as f32,
+                                        (rgba_color.green()/255.0) as f32,
+                                        (rgba_color.blue()/255.0) as f32,
+                                        (alpha_hex/255.0) as f32);
+                                    
+                                    self.screen_buffer.tint = color;
+                                }
                                 _ => ()
                             }
                             
