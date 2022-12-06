@@ -333,27 +333,27 @@ impl Kfn {
         texts_and_syncs
     }
 
-    pub fn get_animation_events(&self) -> Vec<Event> {
-        let mut events: Vec<Event> = Vec::new();
+    /// Co
+    pub fn get_bg_events(&self) -> Vec<Event> {
+        let mut bg_events: Vec<Event> = Vec::new();
         // Select the Eff# fields in the Songs.ini
-        for eff in &self.data.song.effs {
             // Select the Anim# lines
-            for anim in &eff.anims {
+            for anim in &self.data.song.effs[0].anims {
                 // Separate the time
                 let time = anim.time;
                 // Go through each AnimEntry for their actions
                 for animentry in anim.anim_entries.clone() {
-                    events.push(
+                    bg_events.push(
                         Event {
-                            event_type: EventType::Animation(animentry),
+                            event_type: EventType::Background(animentry),
                             time,
                         }
                     )
                 }
             }
-        }
-        dbg!(&events);
-        events
+        
+        //dbg!(&events);
+        bg_events
     }
 
     /// Start playback and returns the thread receiver, that sends
@@ -366,7 +366,7 @@ impl Kfn {
         // read audio file INTO MEMORY
         let cursor: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
 
-        let events = self.get_animation_events();
+        let bg_events = self.get_bg_events();
 
 
         std::thread::spawn(move || {
@@ -381,7 +381,7 @@ impl Kfn {
             let mut offset = std::time::Duration::from_millis(0);
             let mut i = 0;
             
-            dbg!(&events);
+            //dbg!(&bg_events);
 
             loop {
                 
@@ -408,11 +408,11 @@ impl Kfn {
                 }
 
                 if !sink.is_paused() {
-                    if events.len() > 0 && events.len() > i {
-                        if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                    if bg_events.len() > 0 && bg_events.len() > i {
+                        if (bg_events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
                         
-                            sender_player.send(events[i].clone()).unwrap();
-                            println!("{} sent", events[i].time);
+                            sender_player.send(bg_events[i].clone()).unwrap();
+                            println!("{} sent", bg_events[i].time);
                             i += 1;
                         }
                     }
@@ -438,8 +438,8 @@ impl Kfn {
 
         let window = speedy2d::Window::new_centered(&self.header.title, (800, 600)).unwrap();
         
-        let events = self.get_animation_events();
-        dbg!(&events);
+        let events = self.get_bg_events();
+        //dbg!(&events);
         let (sender, receiver) = self.play();
             window.run_loop(
                 KfnPlayer::new(self.data.clone(), 

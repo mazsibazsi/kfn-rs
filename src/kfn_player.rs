@@ -84,7 +84,7 @@ impl KfnPlayer {
     }
 
     /// Function for setting the player's background.
-    fn set_background(&self, entry_name: &str, graphics: &mut Graphics2D, color: speedy2d::color::Color) {
+    fn set_background(&self, entry_name: &str, graphics: &mut Graphics2D) {
         
         graphics.clear_screen(Color::BLACK);
         // match for initial image in library
@@ -122,10 +122,10 @@ impl KfnPlayer {
         let bg = self.screen_buffer.background.event_type.clone();
         //for event in self.screen_buffer.clone() {
             match bg {
-                EventType::Animation(ae) => {
+                EventType::Background(ae) => {
                     match ae.action {
                         Action::ChgBgImg(bg_entry) => {
-                            self.set_background(&bg_entry, graphics, speedy2d::color::Color::WHITE);
+                            self.set_background(&bg_entry, graphics);
                         }
                         
                         _ => ()
@@ -155,17 +155,26 @@ impl KfnPlayer {
     /// Setting the initial state of the player.
     fn set_initial_state(&mut self) {
         // initial bg
-        let initial_bg = self.data.song.effs[0].initial_lib_image.clone();
-        self.event_queue.push(Event {
-            time: 0,
-            event_type: EventType::Animation(crate::kfn_ini::eff::AnimEntry {
-                 action: Action::ChgBgImg(initial_bg), effect: None, trans_time: 0.0, trans_type: crate::kfn_ini::eff::TransType::None })
-        })
+        if let Some(initial_bg) = self.data.song.effs[0].initial_lib_image.clone() {
+            self.event_queue.push(Event {
+                time: 0,
+                event_type: EventType::Background(crate::kfn_ini::eff::AnimEntry {
+                     action: Action::ChgBgImg(initial_bg), effect: None, trans_time: 0.0, trans_type: crate::kfn_ini::eff::TransType::None })
+            })
+        }
     }
 }
 
 
 impl WindowHandler for KfnPlayer {
+    fn on_resize(
+            &mut self,
+            _helper: &mut WindowHelper<()>,
+            size_pixels: Vector2<u32>
+        ) {
+        self.window_size.x = size_pixels.x;
+        self.window_size.y = size_pixels.y;
+    }
 
     fn on_start(&mut self, helper: &mut WindowHelper<()>, _info: WindowStartupInfo)  {
         helper.set_resizable(true);
@@ -191,24 +200,26 @@ impl WindowHandler for KfnPlayer {
         if !self.paused {
 
             // clear screen
-            graphics.clear_screen(Color::BLACK);
+            
 
-            // draw everything in screen buffer
-            self.draw_screen_buffer(helper, graphics);
+
 
             // look for incoming events
-            match self.receiver.try_recv() {
-                Ok(event_recv) => {
-                    println!("{} received", event_recv.time);
-                    dbg!(&event_recv);
-                    self.event_queue.push(event_recv);
+            while !self.receiver.is_empty() {
+                match self.receiver.try_recv() {
+                    Ok(event_recv) => {
+                        println!("{} received", event_recv.time);
+                        dbg!(&event_recv);
+                        self.event_queue.push(event_recv);
+                            
+    
+                    },
+                    Err(_e) => {
                         
-
-                },
-                Err(_e) => {
-                    
-                },
-            };
+                    },
+                };
+            }
+            
             
             // if the event queue is not empty...
             while self.event_queue.len() != 0 {
@@ -216,7 +227,7 @@ impl WindowHandler for KfnPlayer {
                 if let Some(event) = self.event_queue.pop() {
                     match &event.event_type {
                         // and if categorize it based on entries
-                        EventType::Animation(ae) => {
+                        EventType::Background(ae) => {
                             match &ae.action {
                                 // simple bg change
                                 Action::ChgBgImg(_) => {
@@ -237,14 +248,15 @@ impl WindowHandler for KfnPlayer {
                                 }
                                 _ => ()
                             }
-                            
                         },
                         _ => ()
                     }
-                    
+                     
                 }
             }
-            
+
+            // draw everything in screen buffer
+            self.draw_screen_buffer(helper, graphics);
 
             if self.diag.0 {
                 graphics.draw_text((0.0, 0.0), speedy2d::color::Color::RED, &text);

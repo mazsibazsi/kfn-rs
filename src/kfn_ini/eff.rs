@@ -4,15 +4,15 @@ use crate::kfn_ini::Trajectory;
 #[derive(Debug, Clone)]
 pub struct Eff {
     /// The ID of the Eff# layer.
-    /// Te background layer's ID is always 51.
+    /// The background layer's ID is always 51.
     /// Every following starts from 1.
     pub id: usize,
     /// Collection of the animations.
     pub anims: Vec<Anim>,
     /// initial background, if there is any = LibImage
-    pub initial_lib_image: String,
+    pub initial_lib_image: Option<String>,
     /// initial video, if there is any = VideoFile
-    pub initial_video_file: String,
+    pub initial_video_file: Option<String>,
     /// Initial font setting
     pub initial_font: (String, u32),
     /// Collection of the sync timestamps in ms.
