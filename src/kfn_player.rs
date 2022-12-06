@@ -200,7 +200,7 @@ impl WindowHandler for KfnPlayer {
         if !self.paused {
 
             // clear screen
-            
+            graphics.clear_screen(speedy2d::color::Color::BLACK);
 
 
 
