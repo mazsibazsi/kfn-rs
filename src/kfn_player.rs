@@ -151,6 +151,10 @@ impl KfnPlayer {
             println!("KFN-PLAYER: PAUSE signal sent.")
         }
     }
+
+    fn change_track(&mut self) {
+        self.sender.send("CH_TRACK".to_string()).unwrap();
+    }
     
     /// Setting the initial state of the player.
     fn set_initial_state(&mut self) {
@@ -275,5 +279,16 @@ impl WindowHandler for KfnPlayer {
 
     fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, _button: speedy2d::window::MouseButton) {
         self.play_pause();
+    }
+
+    fn on_keyboard_char(
+            &mut self,
+            _helper: &mut WindowHelper<()>,
+            unicode_codepoint: char
+        ) {
+        if unicode_codepoint == 'k' {
+            println!("KFN-PLAYER: CH_TRACK signal sent.");
+            self.change_track();
+        }
     }
 }
