@@ -333,27 +333,27 @@ impl Kfn {
         texts_and_syncs
     }
 
-    pub fn get_animation_events(&self) -> Vec<Event> {
-        let mut events: Vec<Event> = Vec::new();
+    /// Co
+    pub fn get_bg_events(&self) -> Vec<Event> {
+        let mut bg_events: Vec<Event> = Vec::new();
         // Select the Eff# fields in the Songs.ini
-        for eff in &self.data.song.effs {
             // Select the Anim# lines
-            for anim in &eff.anims {
+            for anim in &self.data.song.effs[0].anims {
                 // Separate the time
                 let time = anim.time;
                 // Go through each AnimEntry for their actions
                 for animentry in anim.anim_entries.clone() {
-                    events.push(
+                    bg_events.push(
                         Event {
-                            event_type: EventType::Animation(animentry),
+                            event_type: EventType::Background(animentry),
                             time,
                         }
                     )
                 }
             }
-        }
-        dbg!(&events);
-        events
+        
+        //dbg!(&events);
+        bg_events
     }
 
     /// Start playback and returns the thread receiver, that sends
@@ -364,24 +364,56 @@ impl Kfn {
         let (sender_player, receiver_caller): (crossbeam::channel::Sender<Event>, crossbeam::channel::Receiver<Event>) = crossbeam::channel::unbounded();
         let (sender_caller, receiver_player): (crossbeam::channel::Sender<String>, crossbeam::channel::Receiver<String>) = crossbeam::channel::unbounded();
         // read audio file INTO MEMORY
-        let cursor: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(self.data.get_entry_by_name(&self.data.song.get_source_name()).unwrap().file_bin);
+        let main_source_name = self.data.song.get_source_name();
+        let main_source: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(self.data.get_entry_by_name(&main_source_name).unwrap().file_bin);
 
-        let events = self.get_animation_events();
+        let mut secondary_source_name = None;
+        if self.data.song.ini.get_from(Some("MP3Music"), "Track0") != None {
+            let value = self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap();
+            secondary_source_name = Some(
+                &self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..value.len()-7]
+            );
+        };
+
+        //let secondary_source_name = &self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..key.len()-7];
+        let secondary_source: Option<std::io::Cursor<Vec<u8>>> = match secondary_source_name {
+            Some(_) => {
+                Some(std::io::Cursor::new(self.data.get_entry_by_name(secondary_source_name.unwrap()).unwrap().file_bin))
+            }
+            None => None
+        };
+        
+
+        let bg_events = self.get_bg_events();
 
 
         std::thread::spawn(move || {
             // create an output for the song/mp3
             let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
-            let sink = rodio::Sink::try_new(&stream_handle).unwrap();
+            
             // add it to the created output sink
             // this starts playing asap
-            sink.append(rodio::Decoder::new(std::io::BufReader::new(cursor)).unwrap());
+            let main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
+            main_sink.append(rodio::Decoder::new(std::io::BufReader::new(main_source)).unwrap());
+
+            let secondary_sink: Option<rodio::Sink> = match secondary_source {
+                Some(_) => Some(rodio::Sink::try_new(&stream_handle).unwrap()),
+                None => None,
+            };
+            match &secondary_sink {
+                Some(secondary_sink) => {
+                    secondary_sink.append(rodio::Decoder::new(std::io::BufReader::new(secondary_source.unwrap())).unwrap());
+                    secondary_sink.set_volume(0.0);
+                },
+                None => (),
+            }
             
+
             let mut start_time = std::time::Instant::now();
             let mut offset = std::time::Duration::from_millis(0);
             let mut i = 0;
             
-            dbg!(&events);
+            //dbg!(&bg_events);
 
             loop {
                 
@@ -394,25 +426,43 @@ impl Kfn {
                             "PAUSE" => {
                                 println!("KFN-RS: PAUSE signal received.");
                                 offset = start_time.elapsed() + offset;
-                                sink.pause();
+                                main_sink.pause();
                             },
                             "RESUME" => {
                                 println!("KFN-RS: RESUME signal received.");
-                                sink.play();
+                                main_sink.play();
                                 start_time = std::time::Instant::now();
                             },
+                            "CH_TRACK" => {
+                                println!("KFN-RS: CH_TRACK signal received.");
+                                match &secondary_sink {
+                                    Some(secondary_sink) => {
+                                        if main_sink.volume() == 0.0 {
+                                            main_sink.set_volume(1.0);
+                                            secondary_sink.set_volume(0.0);
+                                        } else {
+                                            main_sink.set_volume(0.0);
+                                            secondary_sink.set_volume(1.0);
+                                        }
+                                    }
+                                    None => println!("KFN-RS: No alternative track available."),
+                                }
+                                    
+                                
+                                
+                            }
                             _ => (),
                         }
                     },
                     Err(_) => (),
                 }
 
-                if !sink.is_paused() {
-                    if events.len() > 0 && events.len() > i {
-                        if (events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                if !main_sink.is_paused() {
+                    if bg_events.len() > 0 && bg_events.len() > i {
+                        if (bg_events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
                         
-                            sender_player.send(events[i].clone()).unwrap();
-                            println!("{} sent", events[i].time);
+                            sender_player.send(bg_events[i].clone()).unwrap();
+                            println!("{} sent", bg_events[i].time);
                             i += 1;
                         }
                     }
@@ -438,8 +488,8 @@ impl Kfn {
 
         let window = speedy2d::Window::new_centered(&self.header.title, (800, 600)).unwrap();
         
-        let events = self.get_animation_events();
-        dbg!(&events);
+        let events = self.get_bg_events();
+        //dbg!(&events);
         let (sender, receiver) = self.play();
             window.run_loop(
                 KfnPlayer::new(self.data.clone(), 

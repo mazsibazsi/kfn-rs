@@ -10,6 +10,7 @@ pub struct Event {
 
 #[derive(Debug, Clone, Default)]
 pub enum EventType {
+    Background(AnimEntry),
     Animation(AnimEntry),
     Text(String),
     #[default]

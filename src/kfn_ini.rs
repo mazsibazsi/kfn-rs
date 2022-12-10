@@ -119,13 +119,28 @@ impl KfnIni {
             );
             // looking for initial library image
             let initial_lib_image = match section.get("LibImage") {
-                Some(s) => s.to_string(),
-                None => "".to_string(),
+                Some(s) => {
+                    if s != "" {
+                        Some(s.to_string())
+                    } else {
+                        None
+                    }
+                    
+                },
+                None => None,
             };
+
             // looking for initial video file
             let initial_video_file = match section.get("VideoFile") {
-                Some(s) => s.to_string(),
-                None => "".to_string(),
+                Some(s) => {
+                    if s != "" {
+                        Some(s.to_string())
+                    } else {
+                        None
+                    }
+                    
+                },
+                None => None,
             };
             // looking for initial font
             let initial_font: (String, u32) = match section.get("Font") {
