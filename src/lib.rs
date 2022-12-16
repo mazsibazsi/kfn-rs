@@ -371,10 +371,12 @@ impl Kfn {
         if self.data.song.ini.get_from(Some("MP3Music"), "Track0") != None {
             let value = self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap();
             secondary_source_name = Some(
-                &self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..value.len()-7]
+                &self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..value.rfind(".mp3").unwrap()+4]
             );
         };
 
+
+        dbg!(&secondary_source_name);
         //let secondary_source_name = &self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..key.len()-7];
         let secondary_source: Option<std::io::Cursor<Vec<u8>>> = match secondary_source_name {
             Some(_) => {
