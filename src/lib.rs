@@ -441,10 +441,18 @@ impl Kfn {
                                 println!("KFN-RS: PAUSE signal received.");
                                 offset = start_time.elapsed() + offset;
                                 main_sink.pause();
+                                match &secondary_sink {
+                                    Some(sink) => sink.pause(),
+                                    None => (), // do nothing
+                                }
                             },
                             "RESUME" => {
                                 println!("KFN-RS: RESUME signal received.");
                                 main_sink.play();
+                                match &secondary_sink {
+                                    Some(sink) => sink.play(),
+                                    None => (), // do nothing
+                                }
                                 start_time = std::time::Instant::now();
                             },
                             "CH_TRACK" => {
