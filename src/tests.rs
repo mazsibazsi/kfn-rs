@@ -178,4 +178,11 @@ mod tests {
 
         kfn.play_kfn();
     }
+
+    #[test]
+    fn lyrics_test() {
+        let mut kfn = Kfn::open("test/input.kfn");
+        kfn.parse().unwrap();
+        dbg!(kfn.get_texts_and_syncs());
+    }
 }

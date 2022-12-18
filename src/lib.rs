@@ -25,6 +25,7 @@ use crate::helpers::event::{Event, EventType};
 // header
 use crate::kfn_header::KfnHeader;
 
+use helpers::event;
 // data
 use kfn_data::KfnData;
 
@@ -280,12 +281,14 @@ impl Kfn {
     }
 
     /// Get texts with syncs in.
-    pub fn get_texts_and_syncs(&self) -> Vec<(String, (usize, String))> {
+    pub fn get_texts_and_syncs(&self) -> Vec<Event>
+    //Vec<(usize, String)> 
+    {
 
 
-        let mut texts_and_syncs: Vec<(String, (usize, String))> = Vec::new();
+        let mut texts_and_syncs: Vec<(usize, String)> = Vec::new();
         
-        let _events: Vec<Event> = Vec::new();
+        let mut events: Vec<Event> = Vec::new();
 
         for eff in &self.data.song.effs {
 
@@ -294,10 +297,9 @@ impl Kfn {
                 // skip the 51 and above eff lines, as those are not text-sync entries
                 continue;
             }
-
-            let mut texts: Vec<String> = Vec::new();
+            let mut texts: Vec<(usize, String)> = Vec::new();
             let mut display: Vec<String> = Vec::new();
-            for text in &eff.texts {
+            for (i, text) in eff.texts.iter().enumerate() {
 
                 if text == "" {
                     //texts.push(text.to_string());
@@ -305,32 +307,37 @@ impl Kfn {
                 if text.contains("/") || text.contains(" ") {
 
                     
-                    let mut line: Vec<String> = text.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
-                    
-
+                    let keywords: Vec<String> = text.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
 
                     let displayed = text.split(&['/'][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>().join("");
-                    for _ in 0..line.len() {
-                        display.push(displayed.clone());
+                    for j in 0..keywords.len() {
+                        //texts_and_syncs.push((eff.syncs[texts_and_syncs.len()], keywords[j].clone()));
+                        events.push(Event {
+                            event_type: EventType::Text(keywords[j].clone()),
+                            time: eff.syncs[texts_and_syncs.len()]
+                        })
                     }
+                    //dbg!(&keywords);
+                    //dbg!(eff.syncs[i],&displayed);
                     
-                    texts.append(&mut line);
+                    //texts.append(&mut keywords);
                 
                 }
             }
-
+            
             //dbg!(&display);
 
             if texts.len() > 0 && eff.syncs.len() > 0 {
                 // FIXME out of bounds exception happens here sometimes
                 for i in 0..eff.texts.len() {
                     //dbg!(&texts_and_syncs);
-                    texts_and_syncs.push((display[i].clone(), (eff.syncs[i], texts[i].clone())))
+                    //texts_and_syncs.push((display[i].clone(), (eff.syncs[i], texts[i].clone())))
                 }
 
             }
         }
-        texts_and_syncs
+        events
+        //texts_and_syncs
     }
 
     /// Co
@@ -387,7 +394,7 @@ impl Kfn {
         
 
         let bg_events = self.get_bg_events();
-
+        let text_events = self.get_texts_and_syncs();
 
         std::thread::spawn(move || {
             // create an output for the song/mp3
@@ -416,6 +423,11 @@ impl Kfn {
             let mut i = 0;
             
             //dbg!(&bg_events);
+            dbg!(&text_events);
+            for event in text_events {
+                sender_player.send(event).unwrap();
+            }
+            
 
             loop {
                 
@@ -460,9 +472,10 @@ impl Kfn {
                 }
 
                 if !main_sink.is_paused() {
+
                     if bg_events.len() > 0 && bg_events.len() > i {
                         if (bg_events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
-                        
+                            
                             sender_player.send(bg_events[i].clone()).unwrap();
                             println!("{} sent", bg_events[i].time);
                             i += 1;
