@@ -285,8 +285,7 @@ impl Kfn {
     //Vec<(usize, String)> 
     {
 
-
-        let mut texts_and_syncs: Vec<(usize, String)> = Vec::new();
+        /*let mut texts_and_syncs: Vec<(usize, String)> = Vec::new();
         
         let mut events: Vec<Event> = Vec::new();
 
@@ -313,7 +312,9 @@ impl Kfn {
                     for j in 0..keywords.len() {
                         //texts_and_syncs.push((eff.syncs[texts_and_syncs.len()], keywords[j].clone()));
                         events.push(Event {
-                            event_type: EventType::Text(keywords[j].clone()),
+                            event_type: EventType::Text(
+                                keywords[j].clone()
+                            ),
                             time: eff.syncs[texts_and_syncs.len()]
                         })
                     }
@@ -337,7 +338,21 @@ impl Kfn {
             }
         }
         events
-        //texts_and_syncs
+        //texts_and_syncs */
+        let mut events: Vec<Event> = Vec::new();
+        for eff in &self.data.song.effs {
+            if eff.id >= 51 {
+                // skip the 51 and above eff lines, as those are not text-sync entries
+                continue;
+            }
+            for text in &eff.texts {
+                events.push(Event {
+                    event_type: EventType::Text(text.to_owned()),
+                    time: text.fragments[0].0
+                })
+            }
+        }
+        events
     }
 
     /// Co
@@ -420,12 +435,13 @@ impl Kfn {
 
             let mut start_time = std::time::Instant::now();
             let mut offset = std::time::Duration::from_millis(0);
-            let mut i = 0;
+            let mut bg_event_iterator = 0;
+            let mut text_event_iterator = 0;
             
             //dbg!(&bg_events);
             dbg!(&text_events);
-            for event in text_events {
-                sender_player.send(event).unwrap();
+            for event in &text_events {
+                sender_player.send(event.to_owned()).unwrap();
             }
             
 
@@ -481,12 +497,18 @@ impl Kfn {
 
                 if !main_sink.is_paused() {
 
-                    if bg_events.len() > 0 && bg_events.len() > i {
-                        if (bg_events[i].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                    if bg_events.len() > 0 && bg_events.len() > bg_event_iterator {
+                        if (bg_events[bg_event_iterator].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
                             
-                            sender_player.send(bg_events[i].clone()).unwrap();
-                            println!("{} sent", bg_events[i].time);
-                            i += 1;
+                            sender_player.send(bg_events[bg_event_iterator].clone()).unwrap();
+                            println!("{} sent", bg_events[bg_event_iterator].time);
+                            bg_event_iterator += 1;
+                        }
+                    }
+
+                    if text_events.len() > 0 && text_events.len() > text_event_iterator {
+                        if (text_events[text_event_iterator].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                        
                         }
                     }
                     

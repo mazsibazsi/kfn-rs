@@ -10,6 +10,7 @@ use trajectory::Trajectory;
 use crate::kfn_header::KfnHeader;
 
 use crate::helpers::Entry;
+use crate::kfn_ini::eff::TextEntry;
 
 
 /// The Song.ini file, which is at the very end of a .kfn file.
@@ -157,7 +158,8 @@ impl KfnIni {
             // list of animations in Anim# form
             let mut anims: Vec<Anim> = Vec::new();
             let mut syncs: Vec<usize> = Vec::new();
-            let mut texts: Vec<String> = Vec::new();
+            let mut texts: Vec<TextEntry> = Vec::new();
+            //let mut texts: Vec<String> = Vec::new();
             
             dbg!(nb_anim);
             // reading the animations, if there are any.
@@ -224,14 +226,34 @@ impl KfnIni {
                 }
             }
             dbg!(&text_count);
-
+            
             if text_count != 0 {
-
-                for j in 0..text_count {
-                    let key = format!("Text{n}", n = &j);
-                    let value = section.get(key).unwrap_or_default();
-                    texts.push(value.to_owned());
+                let mut sync_counter = 0;
+                dbg!(syncs.len());
+                while sync_counter < syncs.len() {
+                    for j in 0..text_count {
+                        let key = format!("Text{n}", n = &j);
+                        let value = section.get(key).unwrap_or_default();
+                        if value == "" {
+                            continue;
+                        }
+                        let mut fragments: Vec<(usize, String)> = Vec::new();
+                        let fragments_vec: Vec<String> = value.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
+                        dbg!(&fragments_vec);
+                        for fragment_string in fragments_vec {
+                            dbg!(&fragment_string);
+                            fragments.push((syncs[sync_counter], fragment_string));
+                            sync_counter += 1;
+                        }
+                        texts.push(TextEntry {
+                            display: value.to_owned(),
+                            fragments,
+                        });
+                        
+                        //texts.push(value.to_owned());
+                    }
                 }
+                
                 
             }
             
@@ -311,7 +333,9 @@ impl KfnIni {
             for text_n in 0..self.effs[eff_n].texts.len() {
                 let mut section = self.ini.with_section(Some(eff_section.as_str()));
 
-                let text_value = self.effs[eff_n].texts[text_n].clone();
+                let text_value = match self.effs[eff_n].texts[text_n].clone() {
+                    TextEntry { display, fragments } => display
+                };
 
                 // prepare string for manipulation
                 let mut text_key = String::from("Text");

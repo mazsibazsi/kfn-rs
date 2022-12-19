@@ -156,7 +156,7 @@ mod tests {
                 Ok(e) => {
                     match e.event_type {
                         EventType::Text(t) => {
-                            println!("{}", t)
+                            println!("{}", Into::<String>::into(t))
                         }
                         _ => ()
                     }

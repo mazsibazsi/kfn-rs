@@ -18,7 +18,7 @@ pub struct Eff {
     /// Collection of the sync timestamps in ms.
     pub syncs: Vec<usize>,
     /// Collection of the songtext lines. Separators: '/' ' '
-    pub texts: Vec<String>,
+    pub texts: Vec<TextEntry>,
     /// Initial trajectory of the layer.
     pub initial_trajectory: Trajectory,
 }
@@ -40,6 +40,27 @@ pub struct AnimEntry {
     pub effect: Option<Effect>,
     pub trans_time: f64,
     pub trans_type: TransType,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TextEntry {
+    pub display: String,
+    pub fragments: Vec<(usize, String)>,
+}
+
+impl Into<String> for TextEntry {
+    fn into(self) -> String {
+        self.display
+    }
+}
+
+impl From<String> for TextEntry {
+    fn from(s: String) -> Self {
+        Self {
+            display: s,
+            fragments: Vec::new()
+        }
+    }
 }
 
 /// Representation of an animation action.

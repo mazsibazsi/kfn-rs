@@ -25,6 +25,7 @@ pub struct KfnPlayer {
     event_queue: Vec<Event>,
     screen_buffer: ScreenBuffer,
     text_buffer: TextBuffer,
+    time: TimeKeeper,
     receiver: crossbeam::channel::Receiver<Event>,
     sender: crossbeam::channel::Sender<String>,
     paused: bool,
@@ -40,6 +41,12 @@ struct ScreenBuffer {
 #[derive(Debug, Clone)]
 struct TextBuffer {
     text_events: Vec<Event>
+}
+
+#[derive(Debug, Clone)]
+struct TimeKeeper {
+    start: std::time::Instant,
+    elapsed: u128,
 }
 
 /// Container for diagnostics data
@@ -84,6 +91,7 @@ impl KfnPlayer {
             event_queue: Vec::new(),
             screen_buffer: ScreenBuffer { background: Event::default(), tint: speedy2d::color::Color::WHITE },
             text_buffer: TextBuffer { text_events: Vec::new() },
+            time: TimeKeeper { start: std::time::Instant::now(), elapsed: 0 },
             receiver,
             sender,
             paused: false,
@@ -127,9 +135,13 @@ impl KfnPlayer {
     }
 
     fn draw_text_buffer(&mut self, graphics: &mut Graphics2D) {
-        let text = match &self.text_buffer.text_events[0].event_type {
-            EventType::Text(s) => s,
-            _ => ""
+        
+        if self.time.elapsed > self.text_buffer.text_events[self.text_buffer.text_events.len()-2].time as u128 * 10  {
+            self.text_buffer.text_events.pop();
+        }
+        let text = match &self.text_buffer.text_events[self.text_buffer.text_events.len()-1].event_type {
+            EventType::Text(s) => Into::<String>::into(s.to_owned()),
+            _ => "".to_string()
         };
         let ftext = self.diag.1.font.layout_text(&text, 50.0, TextOptions::new());
         graphics.draw_text((200.0, 200.0), speedy2d::color::Color::WHITE, &ftext);
@@ -183,6 +195,8 @@ impl KfnPlayer {
                      action: Action::ChgBgImg(initial_bg), effect: None, trans_time: 0.0, trans_type: crate::kfn_ini::eff::TransType::None })
             })
         }
+
+
     }
 }
 
@@ -222,7 +236,7 @@ impl WindowHandler for KfnPlayer {
         // draw routine
         // only executes, when not paused
         if !self.paused {
-
+            self.time.elapsed = self.time.start.elapsed().as_millis();
             // clear screen
             graphics.clear_screen(speedy2d::color::Color::BLACK);
 
@@ -306,7 +320,7 @@ impl WindowHandler for KfnPlayer {
         self.play_pause();
     }
 
-    fn on_keyboard_char(&mut self, b_helper: &mut WindowHelper<()>, unicode_codepoint: char) {
+    fn on_keyboard_char(&mut self, _helper: &mut WindowHelper<()>, unicode_codepoint: char) {
         if unicode_codepoint == 'k' {
             println!("KFN-PLAYER: CH_TRACK signal sent.");
             self.change_track();
