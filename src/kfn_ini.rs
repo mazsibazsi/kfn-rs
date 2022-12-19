@@ -144,14 +144,15 @@ impl KfnIni {
                 None => None,
             };
             // looking for initial font
-            let initial_font: (String, u32) = match section.get("Font") {
+            let initial_font: Option<(String, u32)> = match section.get("Font") {
                 Some(s) => {
                     let res: Vec<&str> = s.split("*").collect();
-                    (res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap())
+                    Some((res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap()))
                 },
                 // if none, revert to Arial Black, as that is the default in the original program
                 None => {
-                    ("Arial Black".to_string(), 12)
+                    None
+                    //("Arial Black".to_string(), 12)
                 }
             };
 
@@ -239,14 +240,15 @@ impl KfnIni {
                         }
                         let mut fragments: Vec<(usize, String)> = Vec::new();
                         let fragments_vec: Vec<String> = value.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
+                        let display: String = value.split('/').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>().join("");
                         dbg!(&fragments_vec);
-                        for fragment_string in fragments_vec {
+                        for fragment_string in &fragments_vec {
                             dbg!(&fragment_string);
-                            fragments.push((syncs[sync_counter], fragment_string));
+                            fragments.push((syncs[sync_counter], fragment_string.to_string()));
                             sync_counter += 1;
                         }
                         texts.push(TextEntry {
-                            display: value.to_owned(),
+                            display: display,
                             fragments,
                         });
                         

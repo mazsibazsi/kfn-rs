@@ -40,7 +40,8 @@ struct ScreenBuffer {
 
 #[derive(Debug, Clone)]
 struct TextBuffer {
-    text_events: Vec<Event>
+    text_events: Vec<Event>,
+    font: Font
 }
 
 #[derive(Debug, Clone)]
@@ -90,7 +91,7 @@ impl KfnPlayer {
             _event_list: event_list,
             event_queue: Vec::new(),
             screen_buffer: ScreenBuffer { background: Event::default(), tint: speedy2d::color::Color::WHITE },
-            text_buffer: TextBuffer { text_events: Vec::new() },
+            text_buffer: TextBuffer { text_events: Vec::new(), font: Font::new(include_bytes!("/usr/share/fonts/noto/NotoSans-Regular.ttf")).unwrap() },
             time: TimeKeeper { start: std::time::Instant::now(), elapsed: 0 },
             receiver,
             sender,
@@ -143,7 +144,7 @@ impl KfnPlayer {
             EventType::Text(s) => Into::<String>::into(s.to_owned()),
             _ => "".to_string()
         };
-        let ftext = self.diag.1.font.layout_text(&text, 50.0, TextOptions::new());
+        let ftext = self.text_buffer.font.layout_text(&text, 50.0, TextOptions::new());
         graphics.draw_text((200.0, 200.0), speedy2d::color::Color::WHITE, &ftext);
     }
 
@@ -196,6 +197,10 @@ impl KfnPlayer {
             })
         }
 
+        if let Some(font) = &self.data.song.effs[1].initial_font {
+            self.text_buffer.font = Font::new(&self.data.get_entry_by_name(&font.0).unwrap().file_bin).unwrap();
+            dbg!(&self.text_buffer.font);
+        }
 
     }
 }
