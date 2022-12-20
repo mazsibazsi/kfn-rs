@@ -198,6 +198,7 @@ impl KfnPlayer {
         }
 
         if let Some(font) = &self.data.song.effs[1].initial_font {
+            dbg!(&font.0);
             self.text_buffer.font = Font::new(&self.data.get_entry_by_name(&font.0).unwrap().file_bin).unwrap();
             dbg!(&self.text_buffer.font);
         }

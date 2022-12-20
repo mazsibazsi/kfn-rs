@@ -147,7 +147,11 @@ impl KfnIni {
             let initial_font: Option<(String, u32)> = match section.get("Font") {
                 Some(s) => {
                     let res: Vec<&str> = s.split("*").collect();
-                    Some((res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap()))
+                    if (&s[s.len()-4..s.len()] != ".ttf") || &s[s.len()-4..s.len()] != ".otf" {
+                        None
+                    } else {
+                        Some((res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap()))
+                    }
                 },
                 // if none, revert to Arial Black, as that is the default in the original program
                 None => {
