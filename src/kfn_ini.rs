@@ -56,6 +56,26 @@ impl KfnIni {
 
     }
 
+    /// Returns the secondary source / vocal included track, if it exists.
+    pub fn get_secondary_source(&self) -> Option<String> {
+        if self.ini.get_from(Some("MP3Music"), "Track0") != None {
+            let value = self.ini.get_from(Some("MP3Music"), "Track0").unwrap();
+            Some(
+                self.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..value.rfind(".mp3").unwrap()+4].to_string()
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn replaces_track(&self) -> bool {
+        if self.ini.get_from(Some("MP3Music"), "Track0").unwrap().split(',').collect::<Vec<&str>>()[2] == "0" {
+            false
+        } else {
+            true
+        }
+    }
+
     /// Populating the General section with empty data.
     pub fn populate_from_header(&mut self, header: &KfnHeader) {
 

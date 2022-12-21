@@ -389,23 +389,18 @@ impl Kfn {
         let main_source_name = self.data.song.get_source_name();
         let main_source: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(self.data.get_entry_by_name(&main_source_name).unwrap().file_bin);
 
-        let mut secondary_source_name = None;
-        if self.data.song.ini.get_from(Some("MP3Music"), "Track0") != None {
-            let value = self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap();
-            secondary_source_name = Some(
-                &self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..value.rfind(".mp3").unwrap()+4]
-            );
-        };
+        let secondary_source_name = self.data.song.get_secondary_source();
 
 
         dbg!(&secondary_source_name);
         //let secondary_source_name = &self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..key.len()-7];
         let secondary_source: Option<std::io::Cursor<Vec<u8>>> = match secondary_source_name {
-            Some(_) => {
-                Some(std::io::Cursor::new(self.data.get_entry_by_name(secondary_source_name.unwrap()).unwrap().file_bin))
+            Some(filename) => {
+                Some(std::io::Cursor::new(self.data.get_entry_by_name(&filename).unwrap().file_bin))
             }
             None => None
         };
+        let replaces_track = self.data.song.replaces_track();
         
 
         let bg_events = self.get_bg_events();
@@ -475,11 +470,13 @@ impl Kfn {
                                 println!("KFN-RS: CH_TRACK signal received.");
                                 match &secondary_sink {
                                     Some(secondary_sink) => {
-                                        if main_sink.volume() == 0.0 {
+                                        if secondary_sink.volume() == 1.0 {
                                             main_sink.set_volume(1.0);
                                             secondary_sink.set_volume(0.0);
                                         } else {
-                                            main_sink.set_volume(0.0);
+                                            if replaces_track {
+                                                main_sink.set_volume(0.0);
+                                            }
                                             secondary_sink.set_volume(1.0);
                                         }
                                     }
