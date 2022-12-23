@@ -1,6 +1,6 @@
 [package]
 name = "kfn-rs"
-version = "0.3.0-alpha"
+version = "0.3.1-alpha"
 authors = ["Balázs Máhli"]
 edition = "2021"
 license = "GPL-3.0-or-later"
