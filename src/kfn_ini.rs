@@ -151,6 +151,13 @@ impl KfnIni {
                 None => None,
             };
 
+            let initial_inactive_color = match section.get("InactiveColor") {
+                Some(s) => {
+                    Some(s.to_string())
+                },
+                None => None
+            };
+
             // looking for initial video file
             let initial_video_file = match section.get("VideoFile") {
                 Some(s) => {
@@ -167,10 +174,13 @@ impl KfnIni {
             let initial_font: Option<(String, u32)> = match section.get("Font") {
                 Some(s) => {
                     let res: Vec<&str> = s.split("*").collect();
-                    if (&s[s.len()-4..s.len()] != ".ttf") || &s[s.len()-4..s.len()] != ".otf" {
-                        None
-                    } else {
+                    dbg!(&res);
+                    let filename = res[0];
+                    let extension = &filename[filename.len()-4..filename.len()];
+                    if extension == ".ttf" || extension == ".TTF" || extension == ".otf" {
                         Some((res[0].to_string(), u32::from_str_radix(res[1], 10).unwrap()))
+                    } else {
+                        None
                     }
                 },
                 // if none, revert to Arial Black, as that is the default in the original program
@@ -179,7 +189,7 @@ impl KfnIni {
                     //("Arial Black".to_string(), 12)
                 }
             };
-
+            dbg!(&initial_font);
             // list of animations in Anim# form
             let mut anims: Vec<Anim> = Vec::new();
             let mut syncs: Vec<usize> = Vec::new();
@@ -265,9 +275,7 @@ impl KfnIni {
                         let mut fragments: Vec<(usize, String)> = Vec::new();
                         let fragments_vec: Vec<String> = value.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
                         let display: String = value.split('/').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>().join("");
-                        dbg!(&fragments_vec);
                         for fragment_string in &fragments_vec {
-                            dbg!(&fragment_string);
                             fragments.push((syncs[sync_counter], fragment_string.to_string()));
                             sync_counter += 1;
                         }
@@ -285,7 +293,19 @@ impl KfnIni {
             
             
             //dbg!(&texts);
-            self.effs.push(Eff { id, anims, syncs, texts, initial_trajectory, initial_lib_image, initial_video_file, initial_font });
+            self.effs.push(
+                Eff { 
+                    id,
+                    anims,
+                    syncs,
+                    texts,
+                    initial_trajectory,
+                    initial_lib_image,
+                    initial_video_file,
+                    initial_font,
+                    initial_inactive_color,
+                }
+            );
         } // for i in 1..effect_count {
        
     }

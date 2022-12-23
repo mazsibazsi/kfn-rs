@@ -15,6 +15,8 @@ pub struct Eff {
     pub initial_video_file: Option<String>,
     /// Initial font setting
     pub initial_font: Option<(String, u32)>,
+    /// Initial inactive font color
+    pub initial_inactive_color: Option<String>, 
     /// Collection of the sync timestamps in ms.
     pub syncs: Vec<usize>,
     /// Collection of the songtext lines. Separators: '/' ' '

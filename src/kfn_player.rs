@@ -1,7 +1,7 @@
 use speedy2d::color::Color;
 use speedy2d::dimen::Vector2;
 use speedy2d::font::{Font, TextLayout, TextOptions};
-use speedy2d::image::{ImageDataType, ImageSmoothingMode};
+use speedy2d::image::{ImageDataType, ImageSmoothingMode, ImageHandle};
 use speedy2d::shape::Rectangle;
 use speedy2d::window::{WindowHandler, WindowHelper, WindowStartupInfo};
 use speedy2d::Graphics2D;
@@ -36,18 +36,21 @@ pub struct KfnPlayer {
 struct ScreenBuffer {
     background: Event,
     tint: Color,
+    buffered_image: (String, Vec<u8>),
+    resized: bool
 }
 
 #[derive(Debug, Clone)]
 struct TextBuffer {
     text_events: Vec<Event>,
-    font: Font
+    font: Font,
+    color: speedy2d::color::Color
 }
 
 #[derive(Debug, Clone)]
 struct TimeKeeper {
-    start: std::time::Instant,
-    elapsed: u128,
+    start_time: std::time::Instant,
+    offset: std::time::Duration,
 }
 
 /// Container for diagnostics data
@@ -90,9 +93,13 @@ impl KfnPlayer {
             curr_background_entry: Entry::default(),
             _event_list: event_list,
             event_queue: Vec::new(),
-            screen_buffer: ScreenBuffer { background: Event::default(), tint: speedy2d::color::Color::WHITE },
-            text_buffer: TextBuffer { text_events: Vec::new(), font: Font::new(include_bytes!("/usr/share/fonts/noto/NotoSans-Regular.ttf")).unwrap() },
-            time: TimeKeeper { start: std::time::Instant::now(), elapsed: 0 },
+            screen_buffer: ScreenBuffer { background: Event::default(), tint: speedy2d::color::Color::WHITE, buffered_image: (String::new(), Vec::new()), resized: false },
+            text_buffer: TextBuffer {
+                text_events: Vec::new(),
+                font: Font::new(include_bytes!("/usr/share/fonts/noto/NotoSans-Regular.ttf")).unwrap(),
+                color: speedy2d::color::Color::WHITE,
+            },
+            time: TimeKeeper { start_time: std::time::Instant::now(), offset: std::time::Duration::from_millis(0) },
             receiver,
             sender,
             paused: false,
@@ -101,7 +108,7 @@ impl KfnPlayer {
     }
 
     /// Function for setting the player's background.
-    fn set_background(&self, entry_name: &str, graphics: &mut Graphics2D) {
+    fn set_background(&mut self, entry_name: &str, graphics: &mut Graphics2D) {
         
         graphics.clear_screen(Color::BLACK);
         // match for initial image in library
@@ -109,18 +116,29 @@ impl KfnPlayer {
             Some(background_entry) => {
                 if background_entry != self.curr_background_entry {
                     //load raw image data from memory
-                    let raw_image = image::load_from_memory(&background_entry.file_bin)
-                    .expect("Invalid image file.")
-                    // resize to fit the window
-                    .resize_to_fill(self.window_size.x, self.window_size.y, image::imageops::FilterType::Triangle)
-                    .into_rgb8().into_raw();
+                    
+                    // if the image is the same, and the window has not been resized, only then should we
+                    // also rebuild the image from memory
+                    if &background_entry.filename != &self.screen_buffer.buffered_image.0 || self.screen_buffer.resized {
+                        self.screen_buffer.resized = false;
+
+                        // resize the image itself, and save it
+                        self.screen_buffer.buffered_image.0 = background_entry.filename;
+                        self.screen_buffer.buffered_image.1 = image::load_from_memory(&background_entry.file_bin)
+                        .expect("Invalid image file.")
+                        // resize to fit the window
+                        .resize_to_fill(self.window_size.x, self.window_size.y, image::imageops::FilterType::Triangle)
+                        .into_rgb8().into_raw();
+                    }
+
                     // convert raw image data to an actual drawable image
                     let image = graphics.create_image_from_raw_pixels(
                     ImageDataType::RGB, 
                     ImageSmoothingMode::NearestNeighbor,
                     // scale for current window
                     (self.window_size.x, self.window_size.y),
-                    &raw_image).unwrap();
+                    &self.screen_buffer.buffered_image.1).unwrap();
+                    
                     let rect = Rectangle::new(
                         Vector2::new(0.0, 0.0),
                         Vector2::new(self.window_size.x as f32, self.window_size.y as f32),
@@ -137,7 +155,7 @@ impl KfnPlayer {
 
     fn draw_text_buffer(&mut self, graphics: &mut Graphics2D) {
         
-        if self.time.elapsed > self.text_buffer.text_events[self.text_buffer.text_events.len()-2].time as u128 * 10  {
+        if (self.text_buffer.text_events[self.text_buffer.text_events.len()-2].time * 10) as u128 <= (self.time.offset + self.time.start_time.elapsed()).as_millis()  {
             self.text_buffer.text_events.pop();
         }
         let text = match &self.text_buffer.text_events[self.text_buffer.text_events.len()-1].event_type {
@@ -145,7 +163,7 @@ impl KfnPlayer {
             _ => "".to_string()
         };
         let ftext = self.text_buffer.font.layout_text(&text, 50.0, TextOptions::new());
-        graphics.draw_text((200.0, 200.0), speedy2d::color::Color::WHITE, &ftext);
+        graphics.draw_text((200.0, 200.0), self.text_buffer.color, &ftext);
     }
 
     fn draw_screen_buffer(&mut self, _helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
@@ -172,10 +190,12 @@ impl KfnPlayer {
     /// Function for pausing and resuming the sink thread.
     fn play_pause(&mut self) {
         if self.paused {
+            self.time.start_time = std::time::Instant::now();
             self.sender.send("RESUME".to_string()).unwrap();
             self.paused = false;
             println!("KFN-PLAYER: RESUME signal sent.")
         } else {
+            self.time.offset = self.time.start_time.elapsed() + self.time.offset;
             self.sender.send("PAUSE".to_string()).unwrap();
             self.paused = true;
             println!("KFN-PLAYER: PAUSE signal sent.")
@@ -192,9 +212,24 @@ impl KfnPlayer {
         if let Some(initial_bg) = self.data.song.effs[0].initial_lib_image.clone() {
             self.event_queue.push(Event {
                 time: 0,
-                event_type: EventType::Background(crate::kfn_ini::eff::AnimEntry {
-                     action: Action::ChgBgImg(initial_bg), effect: None, trans_time: 0.0, trans_type: crate::kfn_ini::eff::TransType::None })
+                event_type: EventType::Background(
+                        crate::kfn_ini::eff::AnimEntry {
+                            action: Action::ChgBgImg(initial_bg),
+                            effect: None, trans_time: 0.0,
+                            trans_type: crate::kfn_ini::eff::TransType::None,
+                        }
+                    )
             })
+        }
+
+        if let Some(inactive_color) = &self.data.song.effs[1].initial_inactive_color {
+            let s: Vec<String> = inactive_color.to_owned().trim().split("").map(|s| s.to_string()).collect();
+            let r = u8::from_str_radix(&(s[2].clone() + &s[3]).to_ascii_lowercase(), 16).unwrap();
+            let g = u8::from_str_radix(&(s[4].clone() + &s[5]).to_ascii_lowercase(), 16).unwrap();
+            let b = u8::from_str_radix(&(s[6].clone() + &s[7]).to_ascii_lowercase(), 16).unwrap();
+            let a = u8::from_str_radix(&(s[8].clone() + &s[9]).to_ascii_lowercase(), 16).unwrap();
+            let hex = speedy2d::color::Color::from_int_rgba(r, g, b, a);
+            self.text_buffer.color = hex;
         }
 
         if let Some(font) = &self.data.song.effs[1].initial_font {
@@ -213,8 +248,10 @@ impl WindowHandler for KfnPlayer {
             _helper: &mut WindowHelper<()>,
             size_pixels: Vector2<u32>
         ) {
-        self.window_size.x = size_pixels.x;
-        self.window_size.y = size_pixels.y;
+            self.window_size.x = size_pixels.x;
+            self.window_size.y = size_pixels.y;
+            self.screen_buffer.resized = true;
+
     }
 
     fn on_start(&mut self, helper: &mut WindowHelper<()>, _info: WindowStartupInfo)  {
@@ -242,7 +279,7 @@ impl WindowHandler for KfnPlayer {
         // draw routine
         // only executes, when not paused
         if !self.paused {
-            self.time.elapsed = self.time.start.elapsed().as_millis();
+            
             // clear screen
             graphics.clear_screen(speedy2d::color::Color::BLACK);
 
