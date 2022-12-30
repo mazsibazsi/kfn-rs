@@ -89,6 +89,7 @@ impl Kfn {
 
     /// Method for parsing the file itself.
     pub fn parse(&mut self) -> Result<bool, KfnParseError> {
+        println!("Started parsing KFN file.");
         // read file signature
         let signature = match String::from_utf8(self.read_bytes(4)) {
             Ok(s) => s,
@@ -143,7 +144,7 @@ impl Kfn {
                         "PROV" => {
                             self.header.prov = len_or_value;
                         },
-                        _ => println!("{}, type 1, value {:x}", signature, len_or_value),
+                        _ => println!("Unknown header entry in file."),
                     }
                 },
                 2 => {
@@ -431,15 +432,22 @@ impl Kfn {
             let mut start_time = std::time::Instant::now();
             let mut offset = std::time::Duration::from_millis(0);
             let mut bg_event_iterator = 0;
-            let mut text_event_iterator = 0;
+            
+            let mut volume: f32 = 1.0;
+            let mut volume_changed = false;
+            let mut on_vocal = false;
+
+            let text_event_iterator = 0;
             
             //dbg!(&bg_events);
-            dbg!(&text_events);
+            //dbg!(&text_events);
+            
+            println!("Preloading text events...");
             for event in &text_events {
                 sender_player.send(event.to_owned()).unwrap();
             }
             
-
+            println!("Starting event loop...");
             loop {
                 
                 // these are the commands that can come
@@ -449,7 +457,7 @@ impl Kfn {
                         match s.as_str() {
                             "STOP" => break,
                             "PAUSE" => {
-                                println!("KFN-RS: PAUSE signal received.");
+                                println!("PAUSE signal received.");
                                 offset = start_time.elapsed() + offset;
                                 main_sink.pause();
                                 match &secondary_sink {
@@ -458,7 +466,7 @@ impl Kfn {
                                 }
                             },
                             "RESUME" => {
-                                println!("KFN-RS: RESUME signal received.");
+                                println!("RESUME signal received.");
                                 main_sink.play();
                                 match &secondary_sink {
                                     Some(sink) => sink.play(),
@@ -467,25 +475,39 @@ impl Kfn {
                                 start_time = std::time::Instant::now();
                             },
                             "CH_TRACK" => {
-                                println!("KFN-RS: CH_TRACK signal received.");
+                                println!("CH_TRACK signal received.");
                                 match &secondary_sink {
                                     Some(secondary_sink) => {
-                                        if secondary_sink.volume() == 1.0 {
-                                            main_sink.set_volume(1.0);
+                                        if on_vocal {
+                                            main_sink.set_volume(volume);
                                             secondary_sink.set_volume(0.0);
+                                            on_vocal = false;
                                         } else {
                                             if replaces_track {
                                                 main_sink.set_volume(0.0);
                                             }
-                                            secondary_sink.set_volume(1.0);
+                                            secondary_sink.set_volume(volume);
+                                            on_vocal = true;
                                         }
                                     }
-                                    None => println!("KFN-RS: No alternative track available."),
+                                    None => println!("No alternative track available."),
                                 }
-                                    
+                            },
+                            "VOL_UP" => {
+                                println!("VOL_UP signal received.");
+                                if volume < 1.0 {
+                                    volume += 0.1;
+                                    volume_changed = true;
+                                }
+                            },
+                            "VOL_DOWN" => {
+                                println!("VOL_DOWN signal received.");
+                                if volume > 0.0 {
+                                    volume -= 0.1;
+                                    volume_changed = true;
+                                }
                                 
-                                
-                            }
+                            },
                             _ => (),
                         }
                     },
@@ -511,6 +533,20 @@ impl Kfn {
                     
                 }
                 
+                if volume_changed {
+                    if on_vocal && replaces_track{
+                        if let Some(secondary_sink) = &secondary_sink {
+                            secondary_sink.set_volume(volume);
+                        }
+                    } else if on_vocal {
+                        if let Some(secondary_sink) = &secondary_sink {
+                            secondary_sink.set_volume(volume);
+                        }
+                    } else {
+                        main_sink.set_volume(volume)
+                    } 
+                    volume_changed = false;
+                }
                 
 
             }

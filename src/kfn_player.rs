@@ -363,10 +363,27 @@ impl WindowHandler for KfnPlayer {
         self.play_pause();
     }
 
+
     fn on_keyboard_char(&mut self, _helper: &mut WindowHelper<()>, unicode_codepoint: char) {
-        if unicode_codepoint == 'k' {
-            println!("KFN-PLAYER: CH_TRACK signal sent.");
-            self.change_track();
+        match unicode_codepoint {
+            'k' => self.change_track(),
+            'p' => self.play_pause(),
+            _ => ()
         }
     }
+
+    
+    fn on_mouse_wheel_scroll(&mut self, helper: &mut WindowHelper<()>, distance: speedy2d::window::MouseScrollDistance) {
+        match distance {
+            speedy2d::window::MouseScrollDistance::Lines { x: _, y, z: _ } => {
+                if y < 0.0 {
+                    self.sender.send("VOL_DOWN".to_owned()).unwrap();
+                }
+                if y > 0.0 {
+                    self.sender.send("VOL_UP".to_owned()).unwrap();
+                }
+            },
+            _ => ()
+        }
+     }
 }
