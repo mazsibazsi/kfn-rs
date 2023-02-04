@@ -69,11 +69,14 @@ impl KfnIni {
     }
 
     pub fn replaces_track(&self) -> bool {
-        if self.ini.get_from(Some("MP3Music"), "Track0").unwrap().split(',').collect::<Vec<&str>>()[2] == "0" {
-            false
-        } else {
-            true
+        if self.ini.get_from(Some("MP3Music"), "Track0") != None {
+            if self.ini.get_from(Some("MP3Music"), "Track0").unwrap().split(',').collect::<Vec<&str>>()[2] == "0" {
+                return false;
+            } else {
+                return true;
+            }
         }
+        false
     }
 
     /// Populating the General section with empty data.

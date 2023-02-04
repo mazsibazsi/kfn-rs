@@ -74,18 +74,21 @@ impl KfnPlayer {
     /// * `receiver` - The timing signal coming from the thread in the kfn-rs library
     /// 
     pub fn new(data: KfnData, window_size: (u32, u32), event_list: Vec<Event>, receiver: crossbeam::channel::Receiver<Event>, sender: crossbeam::channel::Sender<String>) -> Self {
-        let diag = (true, Diagnostics {
-            counter: 0,
-            frame_count: 0,
-            last_update: std::time::Instant::now(),
-            // TODO make this ship with the binary, and not be Linux dependent
-            font: Font::new(include_bytes!(
-                "/usr/share/fonts/noto/NotoSans-Regular.ttf"
-            ))
-            .unwrap(),
-            fps: 0.0,
-            draw_time: 0.0,
-        });
+        let diag = (
+            true, 
+            Diagnostics {
+                counter: 0,
+                frame_count: 0,
+                last_update: std::time::Instant::now(),
+                // TODO make this ship with the binary, and not be Linux dependent
+                font: Font::new(include_bytes!(
+                    "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+                ))
+                .unwrap(),
+                fps: 0.0,
+                draw_time: 0.0,
+            }
+        );
 
         Self { 
             data,
@@ -93,13 +96,21 @@ impl KfnPlayer {
             curr_background_entry: Entry::default(),
             _event_list: event_list,
             event_queue: Vec::new(),
-            screen_buffer: ScreenBuffer { background: Event::default(), tint: speedy2d::color::Color::WHITE, buffered_image: (String::new(), Vec::new()), resized: false },
+            screen_buffer: ScreenBuffer { 
+                background: Event::default(),
+                tint: speedy2d::color::Color::WHITE,
+                buffered_image: (String::new(), Vec::new()),
+                resized: false 
+            },
             text_buffer: TextBuffer {
                 text_events: Vec::new(),
-                font: Font::new(include_bytes!("/usr/share/fonts/noto/NotoSans-Regular.ttf")).unwrap(),
+                font: Font::new(include_bytes!("/usr/share/fonts/noto/NotoSans-Regular.ttf")).unwrap(), // LINUX DEPENDENT!
                 color: speedy2d::color::Color::WHITE,
             },
-            time: TimeKeeper { start_time: std::time::Instant::now(), offset: std::time::Duration::from_millis(0) },
+            time: TimeKeeper { 
+                start_time: std::time::Instant::now(),
+                offset: std::time::Duration::from_millis(0)
+            },
             receiver,
             sender,
             paused: false,
@@ -162,6 +173,7 @@ impl KfnPlayer {
             EventType::Text(s) => Into::<String>::into(s.to_owned()),
             _ => "".to_string()
         };
+        
         let ftext = self.text_buffer.font.layout_text(&text, 50.0, TextOptions::new());
         graphics.draw_text((200.0, 200.0), self.text_buffer.color, &ftext);
     }
@@ -181,11 +193,7 @@ impl KfnPlayer {
                 }
                 _ => ()
             }
-        
-        //let bg = self.screen_buffer.background.event_type.clone();
-        //match bg {
-            
-        //}
+
     }
     /// Function for pausing and resuming the sink thread.
     fn play_pause(&mut self) {
