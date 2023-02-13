@@ -132,6 +132,27 @@ pub mod window_handler {
                 _ => ()
             }
         }
+
+        fn on_key_down(
+                &mut self,
+                _helper: &mut WindowHelper<()>,
+                virtual_key_code: Option<speedy2d::window::VirtualKeyCode>,
+                _scancode: speedy2d::window::KeyScancode
+            ) {
+                if let Some(key) = virtual_key_code {
+                    dbg!(&key);
+                    match key {
+                        speedy2d::window::VirtualKeyCode::Right => {
+                            self.forward();
+                        },
+                        speedy2d::window::VirtualKeyCode::Left => {
+                            self.backward();
+                        },
+                        _ => ()
+                    }
+                }
+                
+        }
     
         
         fn on_mouse_wheel_scroll(&mut self, helper: &mut WindowHelper<()>, distance: speedy2d::window::MouseScrollDistance) {

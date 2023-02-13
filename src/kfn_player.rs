@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use speedy2d::color::Color;
 use speedy2d::dimen::Vector2;
 use speedy2d::font::{Font, TextLayout, TextOptions};
@@ -106,7 +108,7 @@ impl KfnPlayer {
             },
             text_buffer: TextBuffer {
                 text_events: Vec::new(),
-                font: Font::new(include_bytes!("/usr/share/fonts/noto/NotoSans-Regular.ttf")).unwrap(), // LINUX DEPENDENT!
+                font: Font::new(include_bytes!("fonts/NotoSans-Regular.ttf")).unwrap(),
                 color: speedy2d::color::Color::WHITE,
             },
             time: TimeKeeper { 
@@ -212,11 +214,22 @@ impl KfnPlayer {
         }
     }
 
+    /// Sends a CH_TRACK signal to the backend to change to the Vocal/Off-Vocal track.
     fn change_track(&mut self) {
         self.sender.send("CH_TRACK".to_string()).unwrap();
     }
+
+    fn forward(&mut self) {
+        self.sender.send("FW".to_string()).unwrap();
+        self.time.offset += Duration::from_secs(5);
+    }
+    fn backward(&mut self) {
+        self.sender.send("BW".to_string()).unwrap();
+        self.time.offset -= Duration::from_secs(5);
+    }
     
-    /// Setting the initial state of the player.
+    /// Setting the initial state of the player to the parameters that are in the Songs.ini file.
+    /// Sets the background, text color and font.
     fn set_initial_state(&mut self) {
         // initial bg
         if let Some(initial_bg) = self.data.song.effs[0].initial_lib_image.clone() {

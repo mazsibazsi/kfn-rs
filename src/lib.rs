@@ -16,6 +16,8 @@ pub mod fonts;
 
 
 
+use std::time::Duration;
+
 // helpers
 use crate::helpers::Entry;
 use crate::helpers::file_type::FileType;
@@ -31,6 +33,9 @@ use kfn_data::KfnData;
 
 // player
 use kfn_player::KfnPlayer;
+use rodio::Decoder;
+use rodio::Source;
+use rodio::source::SkipDuration;
 
 
 #[derive(derivative::Derivative)]
@@ -413,8 +418,11 @@ impl Kfn {
             
             // add it to the created output sink
             // this starts playing asap
-            let main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
-            main_sink.append(rodio::Decoder::new(std::io::BufReader::new(main_source)).unwrap());
+            
+            let mut main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
+            let mut main_sink_decoder = rodio::Decoder::new(std::io::BufReader::new(main_source.clone())).unwrap();
+            //let skipped = main_sink_decoder.skip_duration(Duration::from_secs(5));
+            main_sink.append(main_sink_decoder.skip_duration(Duration::from_secs(0)));
 
             let secondary_sink: Option<rodio::Sink> = match secondary_source {
                 Some(_) => Some(rodio::Sink::try_new(&stream_handle).unwrap()),
@@ -449,7 +457,7 @@ impl Kfn {
             
             println!("Starting event loop...");
             loop {
-                
+                let mut main_sink_decoder2 = rodio::Decoder::new(std::io::BufReader::new(main_source.clone())).unwrap();
                 // these are the commands that can come
                 // form the graphical player
                 match receiver_player.try_recv() {
@@ -508,6 +516,20 @@ impl Kfn {
                                 }
                                 
                             },
+                            "FW" => {
+                                main_sink.stop();
+                                main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
+                                offset += Duration::from_secs(5);
+                                dbg!(offset);
+                                main_sink.append(main_sink_decoder2.skip_duration(start_time.elapsed() + offset));
+                            }
+                            "BW" => {
+                                main_sink.stop();
+                                main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
+                                offset -= Duration::from_secs(5);
+                                dbg!(offset);
+                                main_sink.append(main_sink_decoder2.skip_duration(start_time.elapsed() + offset));
+                            }
                             _ => (),
                         }
                     },
