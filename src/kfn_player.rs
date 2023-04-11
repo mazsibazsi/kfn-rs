@@ -86,7 +86,7 @@ impl KfnPlayer {
                 last_update: std::time::Instant::now(),
                 // TODO make this ship with the binary, and not be Linux dependent
                 font: Font::new(include_bytes!(
-                    "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+                    "./fonts/NotoSans-Regular.ttf"
                 ))
                 .unwrap(),
                 fps: 0.0,

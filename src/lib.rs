@@ -582,7 +582,7 @@ impl Kfn {
     pub fn play_kfn(&mut self) {
 
         // falling back to X11/Xorg, for server side decoration
-        //std::env::set_var("WAYLAND_DISPLAY", "");
+        std::env::set_var("WAYLAND_DISPLAY", "");
 
 
 
