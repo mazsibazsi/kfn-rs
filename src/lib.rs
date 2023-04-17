@@ -27,15 +27,12 @@ use crate::helpers::event::{Event, EventType};
 // header
 use crate::kfn_header::KfnHeader;
 
-use helpers::event;
-// data
 use kfn_data::KfnData;
 
 // player
 use kfn_player::KfnPlayer;
-use rodio::Decoder;
 use rodio::Source;
-use rodio::source::SkipDuration;
+
 
 
 #[derive(derivative::Derivative)]
@@ -420,17 +417,17 @@ impl Kfn {
             // this starts playing asap
             
             let mut main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
-            let mut main_sink_decoder = rodio::Decoder::new(std::io::BufReader::new(main_source.clone())).unwrap();
+            let main_sink_decoder = rodio::Decoder::new(std::io::BufReader::new(main_source.clone())).unwrap();
             //let skipped = main_sink_decoder.skip_duration(Duration::from_secs(5));
             main_sink.append(main_sink_decoder.skip_duration(Duration::from_secs(0)));
 
-            let secondary_sink: Option<rodio::Sink> = match secondary_source {
+            let mut secondary_sink: Option<rodio::Sink> = match secondary_source {
                 Some(_) => Some(rodio::Sink::try_new(&stream_handle).unwrap()),
                 None => None,
             };
             match &secondary_sink {
                 Some(secondary_sink) => {
-                    secondary_sink.append(rodio::Decoder::new(std::io::BufReader::new(secondary_source.unwrap())).unwrap());
+                    secondary_sink.append(rodio::Decoder::new(std::io::BufReader::new(secondary_source.clone().unwrap())).unwrap());
                     secondary_sink.set_volume(0.0);
                 },
                 None => (),
@@ -457,7 +454,7 @@ impl Kfn {
             
             println!("Starting event loop...");
             loop {
-                let mut main_sink_decoder2 = rodio::Decoder::new(std::io::BufReader::new(main_source.clone())).unwrap();
+                let main_sink_decoder2 = rodio::Decoder::new(std::io::BufReader::new(main_source.clone())).unwrap();
                 // these are the commands that can come
                 // form the graphical player
                 match receiver_player.try_recv() {
@@ -517,18 +514,75 @@ impl Kfn {
                                 
                             },
                             "FW" => {
-                                main_sink.stop();
-                                main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
+                                let mut volumes: [f32; 2] = [main_sink.volume(), 0.0];
+
                                 offset += Duration::from_secs(5);
                                 dbg!(offset);
-                                main_sink.append(main_sink_decoder2.skip_duration(start_time.elapsed() + offset));
-                            }
-                            "BW" => {
+
+                                
+
                                 main_sink.stop();
                                 main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
+                                main_sink.append(main_sink_decoder2.skip_duration(start_time.elapsed() + offset));
+                                main_sink.set_volume(volumes[0]);
+                                if secondary_sink.is_some() {
+                                    
+                                    if let Some(secondary_sink) = secondary_sink {
+                                        volumes[1] = secondary_sink.volume()
+                                    }
+
+                                    secondary_sink = Some(rodio::Sink::try_new(&stream_handle).unwrap());
+
+                                    let secondary_source = secondary_source.clone();
+                                    let secondary_sink_decoder2 = rodio::Decoder::new(std::io::BufReader::new(secondary_source.unwrap())).unwrap();
+                                    match &mut secondary_sink {
+                                        Some(secondary_sink) => {
+                                            
+                                            secondary_sink.append(secondary_sink_decoder2.skip_duration(start_time.elapsed() + offset));
+                                            secondary_sink.set_volume(volumes[1]);
+                                        }
+                                        None => {}
+                                    }
+                                    
+                                
+                                }
+                                dbg!(volumes);
+
+                            }
+                            "BW" => {
+                                let mut volumes: [f32; 2] = [main_sink.volume(), 0.0];
+
                                 offset -= Duration::from_secs(5);
                                 dbg!(offset);
+
+                                main_sink.stop();
+                                main_sink = rodio::Sink::try_new(&stream_handle).unwrap();
                                 main_sink.append(main_sink_decoder2.skip_duration(start_time.elapsed() + offset));
+                                main_sink.set_volume(volumes[0]);
+                                if secondary_sink.is_some() {
+                                    
+                                    if let Some(secondary_sink) = secondary_sink {
+                                        volumes[1] = secondary_sink.volume()
+                                    }
+
+                                    secondary_sink = Some(rodio::Sink::try_new(&stream_handle).unwrap());
+
+                                    let secondary_source = secondary_source.clone();
+                                    let secondary_sink_decoder2 = rodio::Decoder::new(std::io::BufReader::new(secondary_source.unwrap())).unwrap();
+                                    match &mut secondary_sink {
+                                        Some(secondary_sink) => {
+                                            
+                                            secondary_sink.append(secondary_sink_decoder2.skip_duration(start_time.elapsed() + offset));
+                                            secondary_sink.set_volume(volumes[1]);
+                                        }
+                                        None => {}
+                                    }
+                                    
+                                
+                                }
+                                dbg!(volumes);
+
+                                
                             }
                             _ => (),
                         }
