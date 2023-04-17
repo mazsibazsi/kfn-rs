@@ -279,11 +279,12 @@ impl KfnIni {
                         let fragments_vec: Vec<String> = value.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
                         let display: String = value.split('/').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>().join("");
                         for fragment_string in &fragments_vec {
+                            dbg!(fragment_string);
                             fragments.push((syncs[sync_counter], fragment_string.to_string()));
                             sync_counter += 1;
                         }
                         texts.push(TextEntry {
-                            display: display,
+                            display,
                             fragments,
                         });
                         

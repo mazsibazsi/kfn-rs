@@ -179,7 +179,10 @@ impl KfnPlayer {
         };
         
         let ftext = self.text_buffer.font.layout_text(&text, 50.0, TextOptions::new());
-        graphics.draw_text((200.0, 200.0), self.text_buffer.color, &ftext);
+
+        let center_x: f32 = ((self.window_size.x) as f32 / 2.0) - (ftext.width() - ftext.width() / 2.0);
+        
+        graphics.draw_text((center_x, 200.0), self.text_buffer.color, &ftext);
     }
 
     fn draw_screen_buffer(&mut self, _helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
