@@ -86,7 +86,7 @@ impl KfnPlayer {
                 last_update: std::time::Instant::now(),
                 // TODO make this ship with the binary, and not be Linux dependent
                 font: Font::new(include_bytes!(
-                    "./fonts/NotoSans-Regular.ttf"
+                    "./fonts/NotoSansJP-Regular.ttf"
                 ))
                 .unwrap(),
                 fps: 0.0,
@@ -108,7 +108,7 @@ impl KfnPlayer {
             },
             text_buffer: TextBuffer {
                 text_events: Vec::new(),
-                font: Font::new(include_bytes!("fonts/NotoSans-Regular.ttf")).unwrap(),
+                font: Font::new(include_bytes!("fonts/NotoSansJP-Regular.ttf")).unwrap(),
                 color: speedy2d::color::Color::WHITE,
             },
             time: TimeKeeper { 
@@ -179,7 +179,6 @@ impl KfnPlayer {
         };
         
         let ftext = self.text_buffer.font.layout_text(&text, 50.0, TextOptions::new());
-
         let center_x: f32 = ((self.window_size.x) as f32 / 2.0) - (ftext.width() - ftext.width() / 2.0);
         
         graphics.draw_text((center_x, 200.0), self.text_buffer.color, &ftext);
