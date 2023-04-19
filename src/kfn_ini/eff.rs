@@ -15,6 +15,8 @@ pub struct Eff {
     pub initial_video_file: Option<String>,
     /// Initial font setting
     pub initial_font: Option<(String, u32)>,
+    /// Active color
+    pub active_color: String,
     /// Initial inactive font color
     pub initial_inactive_color: Option<String>, 
     /// Collection of the sync timestamps in ms.

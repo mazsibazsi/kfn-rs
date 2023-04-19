@@ -193,6 +193,13 @@ impl KfnIni {
                 }
             };
             dbg!(&initial_font);
+
+            let active_color: String = match section.get("ActiveColor") {
+                Some(s) => s.to_owned(),
+                None => "#FFFFFFFF".to_owned(),
+            };
+
+
             // list of animations in Anim# form
             let mut anims: Vec<Anim> = Vec::new();
             let mut syncs: Vec<usize> = Vec::new();
@@ -307,6 +314,7 @@ impl KfnIni {
                     initial_lib_image,
                     initial_video_file,
                     initial_font,
+                    active_color,
                     initial_inactive_color,
                 }
             );
@@ -428,6 +436,7 @@ impl KfnIni {
         }
 
     }
+
 
 
 }

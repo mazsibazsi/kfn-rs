@@ -48,7 +48,8 @@ struct ScreenBuffer {
 struct TextBuffer {
     text_events: Vec<Event>,
     font: Font,
-    color: speedy2d::color::Color
+    color: speedy2d::color::Color,
+    outline_color: speedy2d::color::Color
 }
 
 #[derive(Debug, Clone)]
@@ -93,7 +94,6 @@ impl KfnPlayer {
                 draw_time: 0.0,
             }
         );
-
         Self { 
             data,
             window_size: Vector2::from((window_size.0, window_size.1)),
@@ -110,6 +110,7 @@ impl KfnPlayer {
                 text_events: Vec::new(),
                 font: Font::new(include_bytes!("fonts/NotoSansJP-Regular.ttf")).unwrap(),
                 color: speedy2d::color::Color::WHITE,
+                outline_color: speedy2d::color::Color::BLACK,
             },
             time: TimeKeeper { 
                 start_time: std::time::Instant::now(),
@@ -178,8 +179,22 @@ impl KfnPlayer {
             _ => "".to_string()
         };
         
-        let ftext = self.text_buffer.font.layout_text(&text, 50.0, TextOptions::new());
+        let ftext = self.text_buffer.font.layout_text(&text, 100.0, TextOptions::new());
+
+        let outline_ftext = self.text_buffer.font.layout_text(&text, 100.0, TextOptions::new());
+
+        
         let center_x: f32 = ((self.window_size.x) as f32 / 2.0) - (ftext.width() - ftext.width() / 2.0);
+        
+        let outline_weight = 5;
+
+        for n in 0..outline_weight {
+            graphics.draw_text((center_x, 200.0+n as f32), self.text_buffer.outline_color, &outline_ftext);
+            graphics.draw_text((center_x, 200.0-n as f32), self.text_buffer.outline_color, &outline_ftext);
+            graphics.draw_text((center_x+n as f32, 200.0), self.text_buffer.outline_color, &outline_ftext);
+            graphics.draw_text((center_x-n as f32, 200.0), self.text_buffer.outline_color, &outline_ftext);
+        }
+
         
         graphics.draw_text((center_x, 200.0), self.text_buffer.color, &ftext);
     }
@@ -256,6 +271,15 @@ impl KfnPlayer {
             let hex = speedy2d::color::Color::from_int_rgba(r, g, b, a);
             self.text_buffer.color = hex;
         }
+
+        self.text_buffer.outline_color = {
+            let s: Vec<String> = self.data.song.effs[1].active_color.to_owned().trim().split("").map(|s| s.to_string()).collect();
+            let r = u8::from_str_radix(&(s[2].clone() + &s[3]).to_ascii_lowercase(), 16).unwrap();
+            let g = u8::from_str_radix(&(s[4].clone() + &s[5]).to_ascii_lowercase(), 16).unwrap();
+            let b = u8::from_str_radix(&(s[6].clone() + &s[7]).to_ascii_lowercase(), 16).unwrap();
+            let a = u8::from_str_radix(&(s[8].clone() + &s[9]).to_ascii_lowercase(), 16).unwrap();
+            speedy2d::color::Color::from_int_rgba(r, g, b, a)
+        };
 
         if let Some(font) = &self.data.song.effs[1].initial_font {
             dbg!(&font.0);
