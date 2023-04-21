@@ -399,7 +399,10 @@ impl Kfn {
         //let secondary_source_name = &self.data.song.ini.get_from(Some("MP3Music"), "Track0").unwrap()[..key.len()-7];
         let secondary_source: Option<std::io::Cursor<Vec<u8>>> = match secondary_source_name {
             Some(filename) => {
-                Some(std::io::Cursor::new(self.data.get_entry_by_name(&filename).unwrap().file_bin))
+                // this is needed, because the line contains additional comma separated -1,0,1 values, which indicate,
+                // if the track is only guide vocal, replaces original, etc... which are not needed here
+                let filename_split: Vec<&str> = filename.split(',').collect();
+                Some(std::io::Cursor::new(self.data.get_entry_by_name(&filename_split[filename_split.len()-1]).unwrap().file_bin))
             }
             None => None
         };
