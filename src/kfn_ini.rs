@@ -392,7 +392,7 @@ impl KfnIni {
                 let mut section = self.ini.with_section(Some(eff_section.as_str()));
 
                 let text_value = match self.effs[eff_n].texts[text_n].clone() {
-                    TextEntry { display, fragments } => display
+                    TextEntry { display, fragments: _fragments } => display
                 };
 
                 // prepare string for manipulation

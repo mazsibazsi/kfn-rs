@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use speedy2d::color::Color;
 use speedy2d::dimen::Vector2;
-use speedy2d::font::{Font, TextLayout, TextOptions};
+use speedy2d::font::Font;
 use speedy2d::image::{ImageDataType, ImageSmoothingMode};
 use speedy2d::shape::Rectangle;
-use speedy2d::window::{WindowHelper};
+use speedy2d::window::WindowHelper;
 use speedy2d::Graphics2D;
 
 
@@ -16,6 +16,9 @@ use crate::kfn_data::KfnData;
 use crate::kfn_ini::eff::Action;
 
 mod window_handler;
+mod text_buffer;
+
+use text_buffer::TextBuffer;
 
 /// The windowed graphical player of the kfn-rs library.
 #[derive(Debug, Clone)]
@@ -44,13 +47,7 @@ struct ScreenBuffer {
     resized: bool
 }
 
-#[derive(Debug, Clone)]
-struct TextBuffer {
-    text_events: Vec<Event>,
-    font: Font,
-    color: speedy2d::color::Color,
-    outline_color: speedy2d::color::Color
-}
+
 
 #[derive(Debug, Clone)]
 struct TimeKeeper {
@@ -109,8 +106,10 @@ impl KfnPlayer {
             text_buffer: TextBuffer {
                 text_events: Vec::new(),
                 font: Font::new(include_bytes!("fonts/NotoSansJP-Regular.ttf")).unwrap(),
+                font_size: 32.0,
                 color: speedy2d::color::Color::WHITE,
                 outline_color: speedy2d::color::Color::BLACK,
+                outline_weight: 5,
             },
             time: TimeKeeper { 
                 start_time: std::time::Instant::now(),
@@ -169,35 +168,7 @@ impl KfnPlayer {
         }
     }
 
-    fn draw_text_buffer(&mut self, graphics: &mut Graphics2D) {
-        
-        if (self.text_buffer.text_events[self.text_buffer.text_events.len()-2].time * 10) as u128 <= (self.time.offset + self.time.start_time.elapsed()).as_millis()  {
-            self.text_buffer.text_events.pop();
-        }
-        let text = match &self.text_buffer.text_events[self.text_buffer.text_events.len()-1].event_type {
-            EventType::Text(s) => Into::<String>::into(s.to_owned()),
-            _ => "".to_string()
-        };
-        
-        let ftext = self.text_buffer.font.layout_text(&text, 100.0, TextOptions::new());
 
-        let outline_ftext = self.text_buffer.font.layout_text(&text, 100.0, TextOptions::new());
-
-        
-        let center_x: f32 = ((self.window_size.x) as f32 / 2.0) - (ftext.width() - ftext.width() / 2.0);
-        
-        let outline_weight = 5;
-
-        for n in 0..outline_weight {
-            graphics.draw_text((center_x, 200.0+n as f32), self.text_buffer.outline_color, &outline_ftext);
-            graphics.draw_text((center_x, 200.0-n as f32), self.text_buffer.outline_color, &outline_ftext);
-            graphics.draw_text((center_x+n as f32, 200.0), self.text_buffer.outline_color, &outline_ftext);
-            graphics.draw_text((center_x-n as f32, 200.0), self.text_buffer.outline_color, &outline_ftext);
-        }
-
-        
-        graphics.draw_text((center_x, 200.0), self.text_buffer.color, &ftext);
-    }
 
     fn draw_screen_buffer(&mut self, _helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
         let bg = self.screen_buffer.background.event_type.clone();

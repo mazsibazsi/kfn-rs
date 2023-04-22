@@ -155,7 +155,7 @@ pub mod window_handler {
         }
     
         
-        fn on_mouse_wheel_scroll(&mut self, helper: &mut WindowHelper<()>, distance: speedy2d::window::MouseScrollDistance) {
+        fn on_mouse_wheel_scroll(&mut self, _helper: &mut WindowHelper<()>, distance: speedy2d::window::MouseScrollDistance) {
             match distance {
                 speedy2d::window::MouseScrollDistance::Lines { x: _, y, z: _ } => {
                     if y < 0.0 {
