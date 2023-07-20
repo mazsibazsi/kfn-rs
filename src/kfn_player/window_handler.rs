@@ -125,10 +125,17 @@ pub mod window_handler {
         }
     
     
-        fn on_keyboard_char(&mut self, _helper: &mut WindowHelper<()>, unicode_codepoint: char) {
+        fn on_keyboard_char(&mut self, helper: &mut WindowHelper<()>, unicode_codepoint: char) {
+            dbg!(unicode_codepoint);
             match unicode_codepoint {
                 'k' => self.change_track(),
                 'p' => self.play_pause(),
+                'f' => {
+                    helper.set_fullscreen_mode(speedy2d::window::WindowFullscreenMode::FullscreenBorderless)
+                },
+                '\u{1b}' => {
+                    helper.set_fullscreen_mode(speedy2d::window::WindowFullscreenMode::Windowed)
+                }
                 _ => ()
             }
         }
