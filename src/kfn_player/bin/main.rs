@@ -4,8 +4,9 @@
 /* use ffmpeg::format::{input, Pixel};
 use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context, flag::Flags};
-use ffmpeg::util::frame::video::Video;
+use ffmpeg::util::frame::video::Video; */
 use std::env;
+/* 
 use std::fs::File;
 use std::io::prelude::*;  */
 
@@ -13,7 +14,11 @@ fn main() {
 
     //ffmpeg::init().unwrap();
 
-    let mut kfn = kfn_rs::Kfn::open("test/input.kfn");
+    let args: Vec<String> = env::args().collect();
+    let mut kfn = match args.len() {
+        1 => kfn_rs::Kfn::open("test/input.kfn"),
+        _ => kfn_rs::Kfn::open(args[1].as_str()),
+    };
     kfn.parse().unwrap();
     kfn.data.song.load_eff();
 

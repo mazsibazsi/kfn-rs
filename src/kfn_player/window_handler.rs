@@ -18,7 +18,7 @@ pub mod window_handler {
         fn on_start(&mut self, helper: &mut WindowHelper<()>, _info: WindowStartupInfo)  {
             helper.set_resizable(true);
             helper.set_icon_from_rgba_pixels(
-                image::open("src/icons/icon32x32.png").unwrap().into_bytes(), (32, 32)).unwrap();
+                image::load_from_memory(include_bytes!("icons/icon32x32.png")).unwrap().into_bytes(), (32, 32)).unwrap();
             self.set_initial_state();
         }
     
@@ -50,7 +50,6 @@ pub mod window_handler {
                 while !self.receiver.is_empty() {
                     match self.receiver.try_recv() {
                         Ok(event_recv) => {
-                            println!("{} received", event_recv.time);
                             dbg!(&event_recv);
                             self.event_queue.push(event_recv);
                                 
