@@ -229,11 +229,11 @@ pub mod kfn_thread {
                             }
                         }
     
-                        if text_events.len() > 0 && text_events.len() > text_event_iterator {
-                            if (text_events[text_event_iterator].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
+                        // if text_events.len() > 0 && text_events.len() > text_event_iterator {
+                        //     if (text_events[text_event_iterator].time * 10) as u128 <= (offset + start_time.elapsed()).as_millis() {
                             
-                            }
-                        }
+                        //     }
+                        // }
                         
                     }
                     

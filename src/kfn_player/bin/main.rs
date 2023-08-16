@@ -20,7 +20,6 @@ fn main() {
         _ => kfn_rs::Kfn::open(args[1].as_str()),
     };
     kfn.parse().unwrap();
-    kfn.data.song.load_eff();
 
 
     /*let mut ictx = input(&String::from("test/extract/Kagamine Rin & Len - Okochama Sensou.avi")).unwrap();

@@ -121,7 +121,7 @@ impl KfnIni {
         
         // get the number of effects to parse
         let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
-
+        dbg!(&effect_count);
         // based on the number of effects...
         for i in 1..=effect_count {
             // create a string "Eff#" 

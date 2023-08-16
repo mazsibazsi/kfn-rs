@@ -25,7 +25,7 @@ pub mod text_buffer {
 
             let current_time = (self.time.offset + self.time.start_time.elapsed()).as_millis(); 
         
-            if (self.text_buffer.text_events[self.text_buffer.text_events.len()-2].time * 10) as u128 <= current_time  {
+            if (self.text_buffer.text_events[self.text_buffer.text_events.len()-2].time * 10) as u128 <= current_time {
                 self.text_buffer.text_events.pop();
             }
 
