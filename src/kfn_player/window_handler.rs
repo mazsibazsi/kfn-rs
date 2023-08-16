@@ -40,20 +40,14 @@ pub mod window_handler {
             // draw routine
             // only executes, when not paused
             if !self.paused {
-                
                 // clear screen
                 graphics.clear_screen(speedy2d::color::Color::BLACK);
-    
-    
-    
                 // look for incoming events
                 while !self.receiver.is_empty() {
                     match self.receiver.try_recv() {
                         Ok(event_recv) => {
                             dbg!(&event_recv);
                             self.event_queue.push(event_recv);
-                                
-        
                         },
                         Err(_e) => {
                             
@@ -111,6 +105,7 @@ pub mod window_handler {
             
             helper.request_redraw();
     
+            
             self.diag.1.draw_time = draw_start.elapsed().as_secs_f32() * 1000.0 * 1000.0;
             self.diag.1.counter += 1;
             self.diag.1.frame_count += 1;
@@ -148,12 +143,18 @@ pub mod window_handler {
                 if let Some(key) = virtual_key_code {
                     dbg!(&key);
                     match key {
+                        // Seeking forwards with the Right arrow.
                         speedy2d::window::VirtualKeyCode::Right => {
                             self.forward();
                         },
+                        // Seeking backwards with the Left arrow. WIP
                         speedy2d::window::VirtualKeyCode::Left => {
                             self.backward();
                         },
+                        // Turning diagnostics on and off with the D key.
+                        speedy2d::window::VirtualKeyCode::D => {
+                            self.diag.0 = !self.diag.0;
+                        }
                         _ => ()
                     }
                 }

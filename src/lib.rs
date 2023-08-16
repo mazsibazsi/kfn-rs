@@ -16,9 +16,6 @@ pub mod fonts;
 pub mod kfn_thread;
 
 
-
-use std::time::Duration;
-
 // helpers
 use crate::helpers::Entry;
 use crate::helpers::file_type::FileType;
@@ -32,7 +29,6 @@ use kfn_data::KfnData;
 
 // player
 use kfn_player::KfnPlayer;
-use rodio::Source;
 
 
 

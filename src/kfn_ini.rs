@@ -194,9 +194,11 @@ impl KfnIni {
             };
             dbg!(&initial_font);
 
-            let active_color: String = match section.get("ActiveColor") {
-                Some(s) => s.to_owned(),
-                None => "#FFFFFFFF".to_owned(),
+            let initial_active_color = match section.get("ActiveColor") {
+                Some(s) => {
+                    Some(s.to_string())
+                },
+                None => None
             };
 
 
@@ -283,10 +285,17 @@ impl KfnIni {
                             continue;
                         }
                         let mut fragments: Vec<(usize, String)> = Vec::new();
-                        let fragments_vec: Vec<String> = value.split(&['/', ' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
+                        let fragments_vec_slashsplit: Vec<String> = value.split(&['/'][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect();
+                        let mut fragments_vec: Vec<String> = Vec::new();
+                        for fragment in fragments_vec_slashsplit {
+                            for s in fragment.split_inclusive(&[' '][..]).collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>() {
+                                fragments_vec.push(s);
+                            }
+                            
+                        }
+
                         let display: String = value.split('/').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>().join("");
                         for fragment_string in &fragments_vec {
-                            dbg!(fragment_string);
                             fragments.push((syncs[sync_counter], fragment_string.to_string()));
                             sync_counter += 1;
                         }
@@ -314,7 +323,7 @@ impl KfnIni {
                     initial_lib_image,
                     initial_video_file,
                     initial_font,
-                    active_color,
+                    initial_active_color,
                     initial_inactive_color,
                 }
             );

@@ -105,9 +105,11 @@ impl KfnPlayer {
             text_buffer: TextBuffer {
                 text_events: Vec::new(),
                 font: Font::new(include_bytes!("fonts/NotoSansJP-Regular.ttf")).unwrap(),
-                font_size: 32.0,
-                color: speedy2d::color::Color::WHITE,
-                outline_color: speedy2d::color::Color::BLACK,
+                font_size: 70.0,
+                inactive_color: speedy2d::color::Color::WHITE,
+                inactive_outline_color: speedy2d::color::Color::BLACK,
+                active_color: speedy2d::color::Color::WHITE,
+                active_outline_color: speedy2d::color::Color::BLACK,
                 outline_weight: 5,
             },
             time: TimeKeeper { 
@@ -212,17 +214,18 @@ impl KfnPlayer {
             let b = u8::from_str_radix(&(s[6].clone() + &s[7]).to_ascii_lowercase(), 16).unwrap();
             let a = u8::from_str_radix(&(s[8].clone() + &s[9]).to_ascii_lowercase(), 16).unwrap();
             let hex = speedy2d::color::Color::from_int_rgba(r, g, b, a);
-            self.text_buffer.color = hex;
+            self.text_buffer.inactive_color = hex;
         }
 
-        self.text_buffer.outline_color = {
-            let s: Vec<String> = self.data.song.effs[1].active_color.to_owned().trim().split("").map(|s| s.to_string()).collect();
+        if let Some(active_color) = &self.data.song.effs[1].initial_active_color {
+            let s: Vec<String> = active_color.to_owned().trim().split("").map(|s| s.to_string()).collect();
             let r = u8::from_str_radix(&(s[2].clone() + &s[3]).to_ascii_lowercase(), 16).unwrap();
             let g = u8::from_str_radix(&(s[4].clone() + &s[5]).to_ascii_lowercase(), 16).unwrap();
             let b = u8::from_str_radix(&(s[6].clone() + &s[7]).to_ascii_lowercase(), 16).unwrap();
             let a = u8::from_str_radix(&(s[8].clone() + &s[9]).to_ascii_lowercase(), 16).unwrap();
-            speedy2d::color::Color::from_int_rgba(r, g, b, a)
-        };
+            let hex = speedy2d::color::Color::from_int_rgba(r, g, b, a);
+            self.text_buffer.inactive_color = hex;
+        }
 
         if let Some(font) = &self.data.song.effs[1].initial_font {
             dbg!(&font.0);

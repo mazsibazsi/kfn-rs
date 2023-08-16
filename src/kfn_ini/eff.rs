@@ -16,7 +16,7 @@ pub struct Eff {
     /// Initial font setting
     pub initial_font: Option<(String, u32)>,
     /// Active color
-    pub active_color: String,
+    pub initial_active_color: Option<String>,
     /// Initial inactive font color
     pub initial_inactive_color: Option<String>, 
     /// Collection of the sync timestamps in ms.
