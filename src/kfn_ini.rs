@@ -119,13 +119,15 @@ impl KfnIni {
     /// Reading the Eff# headed sections
     pub fn load_eff(&mut self) {
         
+        let mut text_count_all = 0;
+
         // get the number of effects to parse
         let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
         dbg!(&effect_count);
         // based on the number of effects...
-        for i in 1..=effect_count {
+        for eff_num in 1..=effect_count {
             // create a string "Eff#" 
-            let eff = format!("Eff{n}", n = &i);
+            let eff = format!("Eff{n}", n = &eff_num);
             
             // select the Eff# section based on the string we previously constructed
             let section = self.ini.section(Some(eff)).unwrap();
@@ -137,6 +139,8 @@ impl KfnIni {
             let nb_anim = section.get("NbAnim").unwrap().to_string().parse::<usize>().unwrap();
             // number of text lines
             let text_count = section.get("TextCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
+            text_count_all += text_count;
+
             // starting trajectory
             let initial_trajectory = Trajectory::from(
                 section.get("Trajectory").unwrap_or_default()
@@ -274,10 +278,11 @@ impl KfnIni {
             }
             dbg!(&text_count);
             
-            if text_count != 0 {
+            if syncs.len() > 0 {
+            
+                //dbg!(syncs.len());
                 let mut sync_counter = 0;
-                dbg!(syncs.len());
-                while sync_counter < syncs.len() {
+                while sync_counter < syncs.len()-1 && text_count != 0 {
                     for j in 0..text_count {
                         let key = format!("Text{n}", n = &j);
                         let value = section.get(key).unwrap_or_default();
@@ -293,15 +298,17 @@ impl KfnIni {
                             }
                             
                         }
-
+                        //dbg!(&syncs);
                         let display: String = value.split('/').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>().join("");
                         for fragment_string in &fragments_vec {
+                            dbg!(&fragment_string, &sync_counter);
                             fragments.push((syncs[sync_counter], fragment_string.to_string()));
                             sync_counter += 1;
                         }
                         texts.push(TextEntry {
                             display,
                             fragments,
+                            eff_num,
                         });
                         
                         //texts.push(value.to_owned());
@@ -316,6 +323,7 @@ impl KfnIni {
             self.effs.push(
                 Eff { 
                     id,
+                    num: eff_num,
                     anims,
                     syncs,
                     texts,
@@ -342,18 +350,19 @@ impl KfnIni {
 
         // Set the EffectCount - number of Eff sections in the Ini.
         self.ini.section_mut(Some("General")).unwrap().insert("EffectCount", self.effs.len().to_string());
+        let effect_count = self.ini.get_from(Some("General"), "EffectCount").unwrap_or("0").to_string().parse::<usize>().unwrap();
 
         // Iterate through ID of effects
-        for eff_n in 0..self.effs.clone().len() {
+        for eff_num in 1..=effect_count {
             
             // prepare for section header
             let mut eff_section = String::from("Eff");
 
             // push number to section header, indexing starts at 1!
-            eff_section.push_str((eff_n + 1).to_string().as_str());
+            eff_section.push_str((eff_num).to_string().as_str());
             
             let mut section = self.ini.with_section(Some(eff_section.clone()));
-            let eff = &self.effs[eff_n];
+            let eff = &self.effs[eff_num];
             // get essential fields
             section
                 .set("ID", &eff.id.to_string())
@@ -362,13 +371,13 @@ impl KfnIni {
                 .set("Trajectory", eff.initial_trajectory.to_string());
 
             // iterate through Anim# 
-            for anim_n in 0..self.effs[eff_n].anims.len() {
+            for anim_n in 0..self.effs[eff_num].anims.len() {
 
                 // get into the appropriate section
                 let mut section = self.ini.with_section(Some(eff_section.as_str()));
 
                 // clone the Anim#
-                let anim = self.effs[eff_n].anims[anim_n].clone();
+                let anim = self.effs[eff_num].anims[anim_n].clone();
 
                 // prepare string for manipulation
                 let mut anim_key = String::from("Anim");
@@ -395,13 +404,13 @@ impl KfnIni {
                 
             }
         
-            self.ini.with_section(Some(eff_section.clone())).set("Sync0", self.effs[eff_n].syncs.to_owned().iter().map(|n| n.to_string()).collect::<Vec<String>>().join(","));
+            self.ini.with_section(Some(eff_section.clone())).set("Sync0", self.effs[eff_num].syncs.to_owned().iter().map(|n| n.to_string()).collect::<Vec<String>>().join(","));
             
-            for text_n in 0..self.effs[eff_n].texts.len() {
+            for text_n in 0..self.effs[eff_num].texts.len() {
                 let mut section = self.ini.with_section(Some(eff_section.as_str()));
 
-                let text_value = match self.effs[eff_n].texts[text_n].clone() {
-                    TextEntry { display, fragments: _fragments } => display
+                let text_value = match self.effs[eff_num].texts[text_n].clone() {
+                    TextEntry { display, fragments: _fragments, eff_num: eff_n } => display
                 };
 
                 // prepare string for manipulation

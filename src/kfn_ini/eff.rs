@@ -7,6 +7,7 @@ pub struct Eff {
     /// The background layer's ID is always 51.
     /// Every following starts from 1.
     pub id: usize,
+    pub num: usize,
     /// Collection of the animations.
     pub anims: Vec<Anim>,
     /// initial background, if there is any = LibImage
@@ -50,6 +51,7 @@ pub struct AnimEntry {
 pub struct TextEntry {
     pub display: String,
     pub fragments: Vec<(usize, String)>,
+    pub eff_num: usize,
 }
 
 impl Into<String> for TextEntry {
@@ -60,9 +62,11 @@ impl Into<String> for TextEntry {
 
 impl From<String> for TextEntry {
     fn from(s: String) -> Self {
+        dbg!(&s);
         Self {
             display: s,
-            fragments: Vec::new()
+            fragments: Vec::new(),
+            eff_num: 1,
         }
     }
 }

@@ -60,7 +60,7 @@ pub mod window_handler {
                 while self.event_queue.len() != 0 {
                     // ...pop the next element that comes
                     if let Some(event) = self.event_queue.pop() {
-                        match &event.event_type {
+                        match &event.event_type.clone() {
                             // and if categorize it based on entries
                             EventType::Background(ae) => {
                                 match &ae.action {
@@ -84,8 +84,13 @@ pub mod window_handler {
                                     _ => ()
                                 }
                             },
-                            EventType::Text(_) => {
-                                self.text_buffer.text_events.push(event);
+                            EventType::Text(te) => {
+                                for n in 0..self.text_buffer_vec.len() {
+                                    if self.text_buffer_vec[n].eff_num == te.eff_num-1 {
+                                        self.text_buffer_vec[n].text_events.push(event.clone());
+                                    }
+                                }
+                                
                                 
                             }
                             _ => ()
@@ -96,7 +101,10 @@ pub mod window_handler {
     
                 // draw everything in screen buffer
                 self.draw_screen_buffer(helper, graphics);
-                if self.text_buffer.text_events.len() > 0 { self.draw_text_buffer(graphics) };
+                for n in 0..self.text_buffer_vec.len() {
+                    if self.text_buffer_vec[n].text_events.len() > 0 { self.draw_text_buffer(graphics) };
+                }
+                
                 // if diagnostics are turned on, draw them
                 if self.diag.0 {
                     graphics.draw_text((0.0, 0.0), speedy2d::color::Color::RED, &text);
